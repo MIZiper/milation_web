@@ -7,8 +7,8 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
-    HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
     PersonList: typeof import('./src/components/PersonList.vue')['default']
+    RelationshipEditor: typeof import('./src/components/RelationshipEditor.vue')['default']
     RelationshipGraph: typeof import('./src/components/RelationshipGraph.vue')['default']
   }
 }

@@ -1,14 +1,24 @@
 <template>
   <v-container>
-    <v-btn @click="addRelationship">添加关系</v-btn>
+    <v-btn @click="openRelationshipEditor">添加关系</v-btn>
     <div ref="graph" class="graph"></div>
+    <RelationshipEditor
+      ref="relationshipEditor"
+      :people="people"
+      :relationships="relationships"
+      @save-relationship="addRelationship"
+    />
   </v-container>
 </template>
 
 <script>
 import * as d3 from 'd3';
+import RelationshipEditor from './RelationshipEditor.vue';
 
 export default {
+  components: {
+    RelationshipEditor
+  },
   data() {
     return {
       relationships: JSON.parse(localStorage.getItem('relationships') || '[]'),
@@ -34,22 +44,42 @@ export default {
         .selectAll('line')
         .data(this.relationships)
         .enter().append('line')
-        .attr('stroke-width', 2);
+        .attr('stroke-width', 2)
+        .attr('marker-end', d => d.directed ? 'url(#arrow)' : '');
 
       const node = svg.append('g')
         .attr('class', 'nodes')
-        .selectAll('circle')
+        .selectAll('g')
         .data(this.people)
-        .enter().append('circle')
-        .attr('r', 5)
-        .attr('fill', 'blue')
+        .enter().append('g')
         .call(d3.drag()
           .on('start', dragstarted)
           .on('drag', dragged)
           .on('end', dragended));
 
-      node.append('title')
+      node.append('image')
+        .attr('xlink:href', d => d.photo || 'path/to/default/photo.png')
+        .attr('x', -15)
+        .attr('y', -15)
+        .attr('width', 30)
+        .attr('height', 30);
+
+      node.append('text')
+        .attr('dx', 20)
+        .attr('dy', 5)
         .text(d => d.name);
+
+      svg.append('defs').append('marker')
+        .attr('id', 'arrow')
+        .attr('viewBox', '0 -5 10 10')
+        .attr('refX', 15)
+        .attr('refY', 0)
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('d', 'M0,-5L10,0L0,5')
+        .attr('fill', '#000');
 
       simulation
         .nodes(this.people)
@@ -65,9 +95,7 @@ export default {
           .attr('x2', d => d.target.x)
           .attr('y2', d => d.target.y);
 
-        node
-          .attr('cx', d => d.x)
-          .attr('cy', d => d.y);
+        node.attr('transform', d => `translate(${d.x},${d.y})`);
       }
 
       function dragstarted(event, d) {
@@ -87,8 +115,13 @@ export default {
         d.fy = null;
       }
     },
-    addRelationship() {
-      // Logic to add a new relationship
+    openRelationshipEditor() {
+      this.$refs.relationshipEditor.openDialog();
+    },
+    addRelationship(relationship) {
+      this.relationships.push(relationship);
+      localStorage.setItem('relationships', JSON.stringify(this.relationships));
+      this.drawGraph();
     }
   }
 };
