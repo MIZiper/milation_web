@@ -46,17 +46,14 @@
 </template>
 
 <script>
+import Person from '../models/Person';
+
 export default {
   data() {
     return {
       dialog: false,
       editIndex: -1,
-      person: {
-        name: '',
-        photo: null,
-        contact: '',
-        description: ''
-      },
+      person: new Person('', null, '', ''),
       people: JSON.parse(localStorage.getItem('people') || '[]'),
       defaultPhoto: 'path/to/default/photo.png'
     };
@@ -67,7 +64,7 @@ export default {
   methods: {
     openDialog() {
       this.editIndex = -1;
-      this.person = { name: '', photo: null, contact: '', description: '' };
+      this.person = new Person('', null, '', '');
       this.dialog = true;
     },
     closeDialog() {
@@ -79,9 +76,9 @@ export default {
         reader.onload = (e) => {
           this.person.photo = e.target.result;
           if (this.editIndex === -1) {
-            this.people.push({ ...this.person });
+            this.people.push(new Person(this.person.name, this.person.photo, this.person.contact, this.person.description));
           } else {
-            this.people.splice(this.editIndex, 1, { ...this.person });
+            this.people.splice(this.editIndex, 1, new Person(this.person.name, this.person.photo, this.person.contact, this.person.description));
           }
           localStorage.setItem('people', JSON.stringify(this.people));
           this.closeDialog();
@@ -90,9 +87,9 @@ export default {
           reader.readAsDataURL(this.person.photo);
         } else {
           if (this.editIndex === -1) {
-            this.people.push({ ...this.person });
+            this.people.push(new Person(this.person.name, null, this.person.contact, this.person.description));
           } else {
-            this.people.splice(this.editIndex, 1, { ...this.person });
+            this.people.splice(this.editIndex, 1, new Person(this.person.name, null, this.person.contact, this.person.description));
           }
           localStorage.setItem('people', JSON.stringify(this.people));
           this.closeDialog();

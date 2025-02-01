@@ -6,10 +6,10 @@
       </v-card-title>
       <v-card-text>
         <v-form ref="form">
-          <v-select v-model="relationship.type" :items="relationshipTypes" label="关系类型" required></v-select>
-          <v-text-field v-model="newRelationshipType" label="自定义关系类型" @keyup.enter="addRelationshipType"></v-text-field>
           <v-select v-model="relationship.source" :items="people" item-text="name" label="来源" required></v-select>
-          <v-select v-model="relationship.target" :items="people" item-text="name" label="目标" required></v-select>
+          <v-select v-model="relationship.target" :items="people" item-text="name" label="目标"></v-select>
+          <v-text-field v-model="newRelationshipType" label="自定义关系类型" @keyup.enter="addRelationshipType"></v-text-field>
+          <v-select v-model="relationship.type" :items="relationshipTypes" label="关系类型" required></v-select>
           <v-checkbox v-model="relationship.directed" label="有向关系"></v-checkbox>
         </v-form>
       </v-card-text>
@@ -23,6 +23,8 @@
 </template>
 
 <script>
+import RelationshipType from '../models/RelationshipType';
+
 export default {
   props: {
     people: Array,
@@ -32,9 +34,9 @@ export default {
     return {
       dialog: false,
       relationship: {
-        type: '',
         source: null,
         target: null,
+        type: '',
         directed: false
       },
       newRelationshipType: '',
@@ -43,7 +45,7 @@ export default {
   },
   methods: {
     openDialog() {
-      this.relationship = { type: '', source: null, target: null, directed: false };
+      this.relationship = { source: null, target: null, type: '', directed: false };
       this.dialog = true;
     },
     closeDialog() {
@@ -51,7 +53,8 @@ export default {
     },
     saveRelationship() {
       if (this.$refs.form.validate()) {
-        this.$emit('save-relationship', { ...this.relationship });
+        const relationship = new RelationshipType(this.relationship.source, this.relationship.target);
+        this.$emit('save-relationship', relationship);
         this.closeDialog();
         this.storeRelationships();
       }

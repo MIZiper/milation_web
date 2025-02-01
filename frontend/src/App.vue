@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <v-main>
-      <PersonList />
+      <RelationshipGraph />
     </v-main>
   </v-app>
 </template>

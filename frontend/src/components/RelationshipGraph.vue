@@ -1,6 +1,7 @@
 <template>
   <v-container>
     <v-btn @click="openRelationshipEditor">添加关系</v-btn>
+    <v-btn @click="openRelationshipTypeEditor">编辑关系类型</v-btn>
     <div ref="graph" class="graph"></div>
     <RelationshipEditor
       ref="relationshipEditor"
@@ -8,16 +9,20 @@
       :relationships="relationships"
       @save-relationship="addRelationship"
     />
+    <RelationshipTypeEditor ref="relationshipTypeEditor" />
   </v-container>
 </template>
 
 <script>
 import * as d3 from 'd3';
 import RelationshipEditor from './RelationshipEditor.vue';
+import RelationshipTypeEditor from './RelationshipTypeEditor.vue';
+import RelationshipType from '../models/RelationshipType';
 
 export default {
   components: {
-    RelationshipEditor
+    RelationshipEditor,
+    RelationshipTypeEditor
   },
   data() {
     return {
@@ -117,6 +122,9 @@ export default {
     },
     openRelationshipEditor() {
       this.$refs.relationshipEditor.openDialog();
+    },
+    openRelationshipTypeEditor() {
+      this.$refs.relationshipTypeEditor.openDialog();
     },
     addRelationship(relationship) {
       this.relationships.push(relationship);

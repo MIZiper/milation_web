@@ -10,5 +10,6 @@ declare module 'vue' {
     PersonList: typeof import('./src/components/PersonList.vue')['default']
     RelationshipEditor: typeof import('./src/components/RelationshipEditor.vue')['default']
     RelationshipGraph: typeof import('./src/components/RelationshipGraph.vue')['default']
+    RelationshipTypeEditor: typeof import('./src/components/RelationshipTypeEditor.vue')['default']
   }
 }
