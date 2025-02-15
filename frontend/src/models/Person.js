@@ -1,8 +1,9 @@
 export default class Person {
-  constructor(name, photo = null, contact = '', description = '') {
+  constructor(name, photo = null, birthYear = '', contact = '', notes = '') {
     this.name = name;
     this.photo = photo;
+    this.birthYear = birthYear;
     this.contact = contact;
-    this.description = description;
+    this.notes = notes;
   }
 }

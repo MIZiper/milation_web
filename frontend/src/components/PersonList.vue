@@ -1,19 +1,21 @@
 <template>
   <v-container>
-    <v-btn icon class="fab" @click="openDialog" color="primary">
+    <v-btn icon class="fab" @click="newPerson" color="primary">
       <v-icon>mdi-plus</v-icon>
     </v-btn>
     <v-dialog v-model="dialog" max-width="500px">
       <v-card>
-        <v-card-title>
-          <span class="headline">{{ editIndex === -1 ? '添加人员' : '编辑人员' }}</span>
-        </v-card-title>
+        <v-card-title>{{ editIndex === -1 ? '添加人员' : '编辑人员' }}</v-card-title>
         <v-card-text>
           <v-form ref="form">
+            <v-img v-if="person.photo && typeof person.photo === 'string'" :src="person.photo" max-width="200"
+              max-height="200" class="mb-3"></v-img>
             <v-text-field v-model="person.name" label="姓名" required></v-text-field>
-            <v-file-input v-model="person.photo" label="照片" accept="image/*"></v-file-input>
-            <v-text-field v-model="person.contact" label="联系方式" required></v-text-field>
-            <v-textarea v-model="person.description" label="简介"></v-textarea>
+            <v-file-input label="照片" @update:modelValue="changePhoto" prepend-icon="mdi-camera"
+              accept="image/*"></v-file-input>
+            <v-text-field v-model="person.contact" label="联系方式"></v-text-field>
+            <v-text-field v-model="person.birthYear" label="出生年份"></v-text-field>
+            <v-textarea v-model="person.notes" label="备注"></v-textarea>
           </v-form>
         </v-card-text>
         <v-card-actions>
@@ -25,18 +27,36 @@
     </v-dialog>
     <v-list>
       <v-list-item v-for="(person, index) in people" :key="index" class="hover-item">
-        <v-list-item-avatar>
-          <v-img :src="person.photo || defaultPhoto" max-width="50" max-height="50"></v-img>
-        </v-list-item-avatar>
-        <v-list-item-content>
-          <v-list-item-title>{{ person.name }}</v-list-item-title>
-          <v-list-item-subtitle>{{ person.contact }}</v-list-item-subtitle>
-        </v-list-item-content>
+        <v-row>
+          <v-col cols="auto">
+            <v-img :src="person.photo || defaultPhoto" style="background-color: lightgray;" width="100"
+              height="100"></v-img>
+          </v-col>
+          <v-col>
+            <v-list-item-title>
+              <v-icon>mdi-account</v-icon>
+              {{ person.name }}
+            </v-list-item-title>
+            <v-list-item-subtitle>
+              <v-icon>mdi-information</v-icon>
+              <span v-if="person.birthYear">
+                出生年份：{{ person.birthYear }}
+              </span>
+              <span v-if="person.contact">
+                联系方式：{{ person.contact }}
+              </span>
+            </v-list-item-subtitle>
+            {{ person.notes }}
+          </v-col>
+        </v-row>
         <v-list-item-action class="hover-actions">
-          <v-btn icon @click="editPerson(index)">
+          <v-btn>
+            <v-icon>mdi-account-details</v-icon>
+          </v-btn>
+          <v-btn @click="editPerson(index)">
             <v-icon>mdi-pencil</v-icon>
           </v-btn>
-          <v-btn icon @click="deletePerson(index)">
+          <v-btn @click="deletePerson(index)">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
         </v-list-item-action>
@@ -53,48 +73,22 @@ export default {
     return {
       dialog: false,
       editIndex: -1,
-      person: new Person('', null, '', ''),
-      people: JSON.parse(localStorage.getItem('people') || '[]'),
-      defaultPhoto: 'path/to/default/photo.png'
+      person: null,
+      people: [],
+      defaultPhoto: '/ApplicationIcon.png',
     };
   },
   created() {
     this.loadPeople();
   },
   methods: {
-    openDialog() {
+    newPerson() {
       this.editIndex = -1;
-      this.person = new Person('', null, '', '');
+      this.person = new Person('', null);
       this.dialog = true;
     },
     closeDialog() {
       this.dialog = false;
-    },
-    savePerson() {
-      if (this.$refs.form.validate()) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          this.person.photo = e.target.result;
-          if (this.editIndex === -1) {
-            this.people.push(new Person(this.person.name, this.person.photo, this.person.contact, this.person.description));
-          } else {
-            this.people.splice(this.editIndex, 1, new Person(this.person.name, this.person.photo, this.person.contact, this.person.description));
-          }
-          localStorage.setItem('people', JSON.stringify(this.people));
-          this.closeDialog();
-        };
-        if (this.person.photo) {
-          reader.readAsDataURL(this.person.photo);
-        } else {
-          if (this.editIndex === -1) {
-            this.people.push(new Person(this.person.name, null, this.person.contact, this.person.description));
-          } else {
-            this.people.splice(this.editIndex, 1, new Person(this.person.name, null, this.person.contact, this.person.description));
-          }
-          localStorage.setItem('people', JSON.stringify(this.people));
-          this.closeDialog();
-        }
-      }
     },
     editPerson(index) {
       this.editIndex = index;
@@ -104,6 +98,26 @@ export default {
     deletePerson(index) {
       this.people.splice(index, 1);
       localStorage.setItem('people', JSON.stringify(this.people));
+    },
+    changePhoto(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.person.photo = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    },
+    savePerson() {
+      if (this.$refs.form.validate()) {
+        const newPerson = new Person(this.person.name, this.person.photo, this.person.birthYear, this.person.contact, this.person.notes);
+        if (this.editIndex === -1) {
+          this.people.push(newPerson);
+        } else {
+          this.people.splice(this.editIndex, 1, newPerson);
+        }
+        localStorage.setItem('people', JSON.stringify(this.people)); // image too large will cause localStorage to fail
+        this.closeDialog();
+      }
+      this.dialog = false;
     },
     loadPeople() {
       this.people = JSON.parse(localStorage.getItem('people') || '[]');
@@ -116,19 +130,12 @@ export default {
 .v-list-item {
   border-bottom: 1px solid rgba(0, 0, 0, 0.12);
   min-height: 100px;
-  display: flex;
-  align-items: center;
 }
-.v-list-item-avatar {
-  margin-right: 16px;
-}
-.v-img {
-  max-width: 50px;
-  max-height: 50px;
-}
+
 .hover-item {
   position: relative;
 }
+
 .hover-actions {
   position: absolute;
   top: 8px;
@@ -136,17 +143,16 @@ export default {
   opacity: 0;
   transition: opacity 0.3s;
 }
+
 .hover-item:hover .hover-actions {
   opacity: 1;
 }
+
 .fab {
   position: fixed;
   bottom: 16px;
   right: 16px;
   width: 56px;
   height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 </style>
