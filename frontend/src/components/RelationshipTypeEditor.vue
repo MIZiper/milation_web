@@ -1,23 +1,36 @@
 <template>
-  <v-dialog v-model="dialog" max-width="500px">
+  <v-dialog v-model="dialog" max-width="600px">
     <v-card>
-      <v-card-title>
-        <span class="headline">编辑关系类型</span>
-      </v-card-title>
+      <v-card-title>编辑关系类型</v-card-title>
       <v-card-text>
-        <v-form ref="form">
-          <v-text-field v-model="newRelationshipType" label="新关系类型" @keyup.enter="addRelationshipType"></v-text-field>
-          <v-list>
-            <v-list-item v-for="(type, index) in relationshipTypes" :key="index">
-              <v-list-item-content>{{ type }}</v-list-item-content>
-              <v-list-item-action>
-                <v-btn icon @click="deleteRelationshipType(index)">
-                  <v-icon>mdi-delete</v-icon>
-                </v-btn>
-              </v-list-item-action>
-            </v-list-item>
-          </v-list>
-        </v-form>
+        <!-- <v-form ref="form"> -->
+        <v-row>
+          <v-col>
+            <v-text-field density="compact" v-model="relationshipType.source" label="关系类型"></v-text-field>
+          </v-col>
+          <v-col cols="4">
+            <v-text-field density="compact" v-model="relationshipType.target" label="（选填）关系类型"></v-text-field>
+          </v-col>
+          <v-col cols="auto">
+            <v-btn @click="addRelationshipType">添加</v-btn>
+          </v-col>
+        </v-row>
+        <v-list>
+          <v-list-item density="compact" v-for="(relationshipType, index) in relationshipTypes" :key="index">
+            <v-row>
+              <v-col>
+                <v-list-item-title>{{ relationshipType.name }}</v-list-item-title> </v-col>
+              <v-col cols="auto">
+                <v-list-item-action>
+                  <v-btn variant="text" @click="deleteRelationshipType(index)">
+                    <v-icon>mdi-delete</v-icon>
+                  </v-btn>
+                </v-list-item-action>
+              </v-col>
+            </v-row>
+          </v-list-item>
+        </v-list>
+        <!-- </v-form> -->
       </v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
@@ -28,13 +41,18 @@
 </template>
 
 <script>
+import RelationshipType from '../models/RelationshipType';
+
 export default {
   data() {
     return {
-      dialog: false,
-      newRelationshipType: '',
-      relationshipTypes: JSON.parse(localStorage.getItem('relationshipTypes') || '["群体关系", "单体关系"]')
+      dialog: true,
+      relationshipType: new RelationshipType('', null),
+      relationshipTypes: [],
     };
+  },
+  created() {
+    this.relationshipTypes = JSON.parse(localStorage.getItem('relationshipTypes')) || [];
   },
   methods: {
     openDialog() {
@@ -44,10 +62,13 @@ export default {
       this.dialog = false;
     },
     addRelationshipType() {
-      if (this.newRelationshipType && !this.relationshipTypes.includes(this.newRelationshipType)) {
-        this.relationshipTypes.push(this.newRelationshipType);
+      if (this.relationshipType.source) {
+        const newRelationshipType = new RelationshipType(
+          this.relationshipType.source, this.relationshipType.target || null
+        );
+        this.relationshipTypes.push(newRelationshipType);
         localStorage.setItem('relationshipTypes', JSON.stringify(this.relationshipTypes));
-        this.newRelationshipType = '';
+        this.relationshipType = new RelationshipType('', null);
       }
     },
     deleteRelationshipType(index) {
@@ -58,5 +79,4 @@ export default {
 };
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>
