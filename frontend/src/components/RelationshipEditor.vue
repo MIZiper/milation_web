@@ -6,11 +6,28 @@
       </v-card-title>
       <v-card-text>
         <v-form ref="form">
-          <v-select v-model="relationship.source" :items="people" item-text="name" label="来源" required></v-select>
-          <v-select v-model="relationship.target" :items="people" item-text="name" label="目标"></v-select>
-          <v-text-field v-model="newRelationshipType" label="自定义关系类型" @keyup.enter="addRelationshipType"></v-text-field>
-          <v-select v-model="relationship.type" :items="relationshipTypes" label="关系类型" required></v-select>
-          <v-checkbox v-model="relationship.directed" label="有向关系"></v-checkbox>
+          <v-row>
+            <v-col cols="9" class="pa-0">
+              <v-select v-model="relationship.source" :items="people" item-title="name" label="彼" required></v-select>
+            </v-col>
+            <v-spacer></v-spacer>
+            <v-btn @click="swapSourceAndTarget">
+              <v-icon>mdi-swap-vertical</v-icon>
+            </v-btn>
+          </v-row>
+          <v-row>
+            <v-spacer></v-spacer>
+            <v-col cols="6" class="pa-0">
+              <v-select density="compact" v-model="relationship.type" :items="relationshipTypes" item-title="name" label="关系类型" required></v-select>
+            </v-col>
+            <v-spacer></v-spacer>
+          </v-row>
+          <v-row>
+            <v-spacer></v-spacer>
+            <v-col cols="9" class="pa-0">
+              <v-select v-model="relationship.target" :items="people" item-title="name" label="此" required></v-select>
+            </v-col>
+          </v-row>
         </v-form>
       </v-card-text>
       <v-card-actions>
@@ -23,29 +40,29 @@
 </template>
 
 <script>
-import RelationshipType from '../models/RelationshipType';
-
 export default {
-  props: {
-    people: Array,
-    relationships: Array
-  },
   data() {
     return {
-      dialog: false,
+      dialog: true,
+
+      people: [],
+      relationshipTypes: [],
+
       relationship: {
         source: null,
         target: null,
-        type: '',
-        directed: false
+        type: null,
       },
-      newRelationshipType: '',
-      relationshipTypes: JSON.parse(localStorage.getItem('relationshipTypes') || '["群体关系", "单体关系"]')
+      relationships: [],
     };
+  },
+  created() {
+    this.people = JSON.parse(localStorage.getItem('people')) || [];
+    this.relationshipTypes = JSON.parse(localStorage.getItem('relationshipTypes')) || [];
+    this.relationships = JSON.parse(localStorage.getItem('relationships')) || [];
   },
   methods: {
     openDialog() {
-      this.relationship = { source: null, target: null, type: '', directed: false };
       this.dialog = true;
     },
     closeDialog() {
@@ -53,22 +70,20 @@ export default {
     },
     saveRelationship() {
       if (this.$refs.form.validate()) {
-        const relationship = new RelationshipType(this.relationship.source, this.relationship.target);
-        this.$emit('save-relationship', relationship);
-        this.closeDialog();
+        const relationship = { ...this.relationship };
+        this.relationships.push(relationship);
         this.storeRelationships();
-      }
-    },
-    addRelationshipType() {
-      if (this.newRelationshipType && !this.relationshipTypes.includes(this.newRelationshipType)) {
-        this.relationshipTypes.push(this.newRelationshipType);
-        localStorage.setItem('relationshipTypes', JSON.stringify(this.relationshipTypes));
-        this.newRelationshipType = '';
+        this.closeDialog();
       }
     },
     storeRelationships() {
       localStorage.setItem('relationships', JSON.stringify(this.relationships));
-    }
+    },
+    swapSourceAndTarget() {
+      const source = this.relationship.source;
+      this.relationship.source = this.relationship.target;
+      this.relationship.target = source;
+    },
   }
 };
 </script>

@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <v-main>
-      <RelationshipTypeEditor />
+      <RelationshipEditor />
     </v-main>
   </v-app>
 </template>
