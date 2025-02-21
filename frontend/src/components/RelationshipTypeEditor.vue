@@ -41,7 +41,7 @@
 </template>
 
 <script>
-import RelationshipType from '../models/RelationshipType';
+import { RelationshipType } from '../models/PersonRelationship';
 
 export default {
   data() {

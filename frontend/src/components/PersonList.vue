@@ -66,7 +66,7 @@
 </template>
 
 <script>
-import Person from '../models/Person';
+import { Person } from '../models/PersonRelationship';
 
 export default {
   data() {

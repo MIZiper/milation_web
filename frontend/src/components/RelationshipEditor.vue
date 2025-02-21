@@ -40,6 +40,8 @@
 </template>
 
 <script>
+import { RelationshipType } from '../models/PersonRelationship';
+
 export default {
   data() {
     return {

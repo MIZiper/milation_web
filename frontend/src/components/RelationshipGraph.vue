@@ -17,7 +17,7 @@
 import * as d3 from 'd3';
 import RelationshipEditor from './RelationshipEditor.vue';
 import RelationshipTypeEditor from './RelationshipTypeEditor.vue';
-import RelationshipType from '../models/RelationshipType';
+import { RelationshipType } from '../models/PersonRelationship';
 
 export default {
   components: {
