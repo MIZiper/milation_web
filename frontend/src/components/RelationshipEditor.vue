@@ -8,7 +8,7 @@
         <v-form ref="form">
           <v-row>
             <v-col cols="9" class="pa-0">
-              <v-select v-model="relationship.source" :items="people" item-title="name" label="彼" required></v-select>
+              <v-select v-model="relationship.source" :items="people" item-title="name" label="此" required></v-select>
             </v-col>
             <v-spacer></v-spacer>
             <v-btn @click="swapSourceAndTarget">
@@ -25,7 +25,7 @@
           <v-row>
             <v-spacer></v-spacer>
             <v-col cols="9" class="pa-0">
-              <v-select v-model="relationship.target" :items="people" item-title="name" label="此" required></v-select>
+              <v-select v-model="relationship.target" :items="people" item-title="name" label="彼" required></v-select>
             </v-col>
           </v-row>
         </v-form>

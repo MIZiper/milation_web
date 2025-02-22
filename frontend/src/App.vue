@@ -12,6 +12,10 @@
         <v-icon>mdi-graph</v-icon>
         <span>关系图</span>
       </v-btn>
+      <v-btn @click="goToRelationshipTypeEditor" :class="{ active: activeTab === 2 }">
+        <v-icon>mdi-vector-line</v-icon>
+        <span>关系类型</span>
+      </v-btn>
     </v-bottom-navigation>
   </v-app>
 </template>
@@ -38,6 +42,11 @@ function goToRelationshipGraph() {
   router.push('/relationship-graph');
 }
 
+function goToRelationshipTypeEditor() {
+  activeTab.value = 2;
+  router.push('/relationship-type');
+}
+
 watch(route, (newRoute) => {
   if (newRoute.path === '/person-list') {
     document.title = '人员列表 - MILation';
@@ -45,6 +54,9 @@ watch(route, (newRoute) => {
   } else if (newRoute.path === '/relationship-graph') {
     document.title = '关系图 - MILation';
     activeTab.value = 1;
+  } else if (newRoute.path === '/relationship-type') {
+    document.title = '关系类型 - MILation';
+    activeTab.value = 2;
   }
 }, { immediate: true });
 </script>

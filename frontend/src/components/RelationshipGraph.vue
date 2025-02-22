@@ -1,7 +1,8 @@
 <template>
   <v-container>
-    <v-btn @click="openRelationshipEditor">添加关系</v-btn>
-    <v-btn @click="openRelationshipTypeEditor">编辑关系类型</v-btn>
+    <v-btn icon class="fab" @click="openRelationshipEditor" color="secondary">
+      <v-icon>mdi-plus</v-icon>
+    </v-btn>
     <div ref="graph" class="graph"></div>
     <RelationshipEditor
       ref="relationshipEditor"
@@ -9,20 +10,17 @@
       :relationships="relationships"
       @save-relationship="addRelationship"
     />
-    <RelationshipTypeEditor ref="relationshipTypeEditor" />
   </v-container>
 </template>
 
 <script>
 import * as d3 from 'd3';
 import RelationshipEditor from './RelationshipEditor.vue';
-import RelationshipTypeEditor from './RelationshipTypeEditor.vue';
 import { RelationshipType } from '../models/PersonRelationship';
 
 export default {
   components: {
-    RelationshipEditor,
-    RelationshipTypeEditor
+    RelationshipEditor
   },
   data() {
     return {
@@ -123,9 +121,6 @@ export default {
     openRelationshipEditor() {
       this.$refs.relationshipEditor.openDialog();
     },
-    openRelationshipTypeEditor() {
-      this.$refs.relationshipTypeEditor.openDialog();
-    },
     addRelationship(relationship) {
       this.relationships.push(relationship);
       localStorage.setItem('relationships', JSON.stringify(this.relationships));
@@ -135,8 +130,16 @@ export default {
 };
 </script>
 
-<style>
+<style scoped>
 .graph {
   border: 1px solid #ccc;
+}
+
+.fab {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 56px;
+  height: 56px;
 }
 </style>
