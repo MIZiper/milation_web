@@ -46,7 +46,7 @@ import { RelationshipType } from '../models/PersonRelationship';
 export default {
   data() {
     return {
-      dialog: true,
+      dialog: false,
       relationshipType: new RelationshipType('', null),
       relationshipTypes: [],
     };

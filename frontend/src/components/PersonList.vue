@@ -150,7 +150,7 @@ export default {
 
 .fab {
   position: fixed;
-  bottom: 16px;
+  top: 16px;
   right: 16px;
   width: 56px;
   height: 56px;

@@ -11,5 +11,7 @@ declare module 'vue' {
     RelationshipEditor: typeof import('./src/components/RelationshipEditor.vue')['default']
     RelationshipGraph: typeof import('./src/components/RelationshipGraph.vue')['default']
     RelationshipTypeEditor: typeof import('./src/components/RelationshipTypeEditor.vue')['default']
+    RouterLink: typeof import('vue-router')['RouterLink']
+    RouterView: typeof import('vue-router')['RouterView']
   }
 }
