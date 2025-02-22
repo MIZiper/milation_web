@@ -3,7 +3,7 @@
     <v-btn icon class="fab" @click="newPerson" color="primary">
       <v-icon>mdi-plus</v-icon>
     </v-btn>
-    <v-dialog v-model="dialog" max-width="500px">
+    <v-dialog v-model="dialog" max-width="600px">
       <v-card>
         <v-card-title>{{ editIndex === -1 ? '添加人员' : '编辑人员' }}</v-card-title>
         <v-card-text>
@@ -150,9 +150,10 @@ export default {
 
 .fab {
   position: fixed;
-  top: 16px;
+  bottom: 72px;
   right: 16px;
   width: 56px;
   height: 56px;
+  z-index: 1000;
 }
 </style>

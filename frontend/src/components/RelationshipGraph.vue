@@ -137,9 +137,10 @@ export default {
 
 .fab {
   position: fixed;
-  top: 16px;
+  bottom: 72px;
   right: 16px;
   width: 56px;
   height: 56px;
+  z-index: 1000;
 }
 </style>
