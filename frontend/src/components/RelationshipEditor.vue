@@ -40,28 +40,21 @@
 </template>
 
 <script>
-import { RelationshipType } from '../models/PersonRelationship';
+import { RelationshipType, Person, Relationship } from '../models/PersonRelationship';
 
 export default {
   data() {
     return {
       dialog: false,
-
-      people: [],
-      relationshipTypes: [],
-
+      people: Person.loadFromLocalStorage(),
+      relationshipTypes: RelationshipType.loadFromLocalStorage(),
       relationship: {
         source: null,
         target: null,
         type: null,
       },
-      relationships: [],
+      relationships: Relationship.loadFromLocalStorage(),
     };
-  },
-  created() {
-    this.people = JSON.parse(localStorage.getItem('people')) || [];
-    this.relationshipTypes = JSON.parse(localStorage.getItem('relationshipTypes')) || [];
-    this.relationships = JSON.parse(localStorage.getItem('relationships')) || [];
   },
   methods: {
     openDialog() {
@@ -72,20 +65,21 @@ export default {
     },
     saveRelationship() {
       if (this.$refs.form.validate()) {
-        const relationship = { ...this.relationship };
+        const relationship = new Relationship(
+          this.relationship.source,
+          this.relationship.target,
+          this.relationship.type
+        );
         this.relationships.push(relationship);
-        this.storeRelationships();
+        Relationship.saveToLocalStorage(this.relationships);
         this.closeDialog();
       }
-    },
-    storeRelationships() {
-      localStorage.setItem('relationships', JSON.stringify(this.relationships));
     },
     swapSourceAndTarget() {
       const source = this.relationship.source;
       this.relationship.source = this.relationship.target;
       this.relationship.target = source;
-    },
+    }
   }
 };
 </script>

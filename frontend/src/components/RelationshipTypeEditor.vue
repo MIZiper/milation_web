@@ -36,11 +36,8 @@ export default {
   data() {
     return {
       relationshipType: new RelationshipType('', null),
-      relationshipTypes: [],
+      relationshipTypes: RelationshipType.loadFromLocalStorage(),
     };
-  },
-  created() {
-    this.relationshipTypes = JSON.parse(localStorage.getItem('relationshipTypes')) || [];
   },
   methods: {
     addRelationshipType() {
@@ -49,13 +46,13 @@ export default {
           this.relationshipType.source, this.relationshipType.target || null
         );
         this.relationshipTypes.push(newRelationshipType);
-        localStorage.setItem('relationshipTypes', JSON.stringify(this.relationshipTypes));
+        RelationshipType.saveToLocalStorage(this.relationshipTypes);
         this.relationshipType = new RelationshipType('', null);
       }
     },
     deleteRelationshipType(index) {
       this.relationshipTypes.splice(index, 1);
-      localStorage.setItem('relationshipTypes', JSON.stringify(this.relationshipTypes));
+      RelationshipType.saveToLocalStorage(this.relationshipTypes);
     }
   }
 };

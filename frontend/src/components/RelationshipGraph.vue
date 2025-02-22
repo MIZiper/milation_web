@@ -16,7 +16,7 @@
 <script>
 import * as d3 from 'd3';
 import RelationshipEditor from './RelationshipEditor.vue';
-import { RelationshipType } from '../models/PersonRelationship';
+import { RelationshipType, Person, Relationship } from '../models/PersonRelationship';
 
 export default {
   components: {
@@ -24,8 +24,8 @@ export default {
   },
   data() {
     return {
-      relationships: JSON.parse(localStorage.getItem('relationships') || '[]'),
-      people: JSON.parse(localStorage.getItem('people') || '[]')
+      relationships: Relationship.loadFromLocalStorage(),
+      people: Person.loadFromLocalStorage()
     };
   },
   mounted() {
@@ -123,7 +123,7 @@ export default {
     },
     addRelationship(relationship) {
       this.relationships.push(relationship);
-      localStorage.setItem('relationships', JSON.stringify(this.relationships));
+      Relationship.saveToLocalStorage(this.relationships);
       this.drawGraph();
     }
   }

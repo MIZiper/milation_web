@@ -74,12 +74,9 @@ export default {
       dialog: false,
       editIndex: -1,
       person: null,
-      people: [],
+      people: Person.loadFromLocalStorage(),
       defaultPhoto: '/ApplicationIcon.png',
     };
-  },
-  created() {
-    this.loadPeople();
   },
   methods: {
     newPerson() {
@@ -97,7 +94,7 @@ export default {
     },
     deletePerson(index) {
       this.people.splice(index, 1);
-      localStorage.setItem('people', JSON.stringify(this.people));
+      Person.saveToLocalStorage(this.people);
     },
     changePhoto(file) {
       const reader = new FileReader();
@@ -114,13 +111,10 @@ export default {
         } else {
           this.people.splice(this.editIndex, 1, newPerson);
         }
-        localStorage.setItem('people', JSON.stringify(this.people)); // image too large will cause localStorage to fail
+        Person.saveToLocalStorage(this.people);
         this.closeDialog();
       }
       this.dialog = false;
-    },
-    loadPeople() {
-      this.people = JSON.parse(localStorage.getItem('people') || '[]');
     }
   }
 };
