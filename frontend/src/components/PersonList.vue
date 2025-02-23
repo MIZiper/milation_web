@@ -96,8 +96,8 @@ export default {
       this.dialog = true;
     },
     async deletePerson(index) {
-      this.people.splice(index, 1);
-      await Person.saveToIndexedDB(this.people);
+      const person = this.people.splice(index, 1)[0];
+      await Person.deleteFromIndexedDB(person.id);
     },
     changePhoto(file) {
       const reader = new FileReader();

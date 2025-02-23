@@ -45,6 +45,17 @@ class IndexedDBHelper {
       request.onerror = () => reject(request.error);
     });
   }
+
+  static async deleteData(storeName: string, key: string): Promise<void> {
+    const db = await IndexedDBHelper.openDB();
+    const transaction = db.transaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
+    store.delete(key);
+    return new Promise((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
 }
 
 export class Person {
@@ -112,6 +123,10 @@ export class Person {
     const data = this.save();
     await IndexedDBHelper.saveData('people', data);
   }
+
+  static async deleteFromIndexedDB(id: string): Promise<void> {
+    await IndexedDBHelper.deleteData('people', id);
+  }
 }
 
 export class RelationshipType {
@@ -170,6 +185,10 @@ export class RelationshipType {
 
   async saveToIndexedDB(): Promise<void> {
     await IndexedDBHelper.saveData('relationshipTypes', this.save());
+  }
+
+  static async deleteFromIndexedDB(id: string): Promise<void> {
+    await IndexedDBHelper.deleteData('relationshipTypes', id);
   }
 }
 
@@ -233,5 +252,9 @@ export class Relationship {
 
   async saveToIndexedDB(): Promise<void> {
     await IndexedDBHelper.saveData('relationships', this.save());
+  }
+
+  static async deleteFromIndexedDB(id: string): Promise<void> {
+    await IndexedDBHelper.deleteData('relationships', id);
   }
 }

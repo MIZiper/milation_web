@@ -58,8 +58,8 @@ export default {
       }
     },
     async deleteRelationshipType(index) {
-      this.relationshipTypes.splice(index, 1);
-      await RelationshipType.saveToIndexedDB(this.relationshipTypes);
+      const relationshipType = this.relationshipTypes.splice(index, 1)[0];
+      await RelationshipType.deleteFromIndexedDB(relationshipType.id);
     }
   }
 };
