@@ -33,7 +33,7 @@
       <v-card-actions>
         <v-spacer></v-spacer>
         <v-btn color="blue darken-1" text @click="closeDialog">取消</v-btn>
-        <v-btn color="blue darken-1" text @click="saveRelationship">保存</v-btn>
+        <v-btn color="blue darken-1" text @click="addRelationship">保存</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -46,15 +46,20 @@ export default {
   data() {
     return {
       dialog: false,
-      people: Person.loadFromLocalStorage(),
-      relationshipTypes: RelationshipType.loadFromLocalStorage(),
+      people: [],
+      relationshipTypes: [],
       relationship: {
         source: null,
         target: null,
         type: null,
       },
-      relationships: Relationship.loadFromLocalStorage(),
+      relationships: [],
     };
+  },
+  async created() {
+    this.people = await Person.loadFromIndexedDB();
+    this.relationshipTypes = await RelationshipType.loadFromIndexedDB();
+    this.relationships = await Relationship.loadFromIndexedDB();
   },
   methods: {
     openDialog() {
@@ -63,15 +68,20 @@ export default {
     closeDialog() {
       this.dialog = false;
     },
-    saveRelationship() {
+    async addRelationship() {
       if (this.$refs.form.validate()) {
-        const relationship = new Relationship(
+        const relationship = Relationship.create(
           this.relationship.source,
           this.relationship.target,
           this.relationship.type
         );
         this.relationships.push(relationship);
-        Relationship.saveToLocalStorage(this.relationships);
+        await relationship.saveToIndexedDB();
+        this.relationship = {
+          source: null,
+          target: null,
+          type: null,
+        };
         this.closeDialog();
       }
     },

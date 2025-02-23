@@ -24,9 +24,13 @@ export default {
   },
   data() {
     return {
-      relationships: Relationship.loadFromLocalStorage(),
-      people: Person.loadFromLocalStorage()
+      relationships: [],
+      people: []
     };
+  },
+  async created() {
+    this.people = await Person.loadFromIndexedDB();
+    this.relationships = await Relationship.loadFromIndexedDB();
   },
   mounted() {
     this.drawGraph();
@@ -121,9 +125,9 @@ export default {
     openRelationshipEditor() {
       this.$refs.relationshipEditor.openDialog();
     },
-    addRelationship(relationship) {
+    async addRelationship(relationship) {
       this.relationships.push(relationship);
-      Relationship.saveToLocalStorage(this.relationships);
+      await relationship.saveToIndexedDB();
       this.drawGraph();
     }
   }

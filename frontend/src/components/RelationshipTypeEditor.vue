@@ -35,24 +35,31 @@ import { RelationshipType } from '../models/PersonRelationship';
 export default {
   data() {
     return {
-      relationshipType: new RelationshipType('', null),
-      relationshipTypes: RelationshipType.loadFromLocalStorage(),
+      relationshipType: {
+        source: '',
+        target: '',
+      },
+      relationshipTypes: [],
     };
   },
+  async created() {
+    this.relationshipTypes = await RelationshipType.loadFromIndexedDB();
+  },
   methods: {
-    addRelationshipType() {
+    async addRelationshipType() {
       if (this.relationshipType.source) {
-        const newRelationshipType = new RelationshipType(
-          this.relationshipType.source, this.relationshipType.target || null
+        const newRelationshipType = RelationshipType.create(
+          this.relationshipType.source,
+          this.relationshipType.target || null
         );
         this.relationshipTypes.push(newRelationshipType);
-        RelationshipType.saveToLocalStorage(this.relationshipTypes);
-        this.relationshipType = new RelationshipType('', null);
+        await newRelationshipType.saveToIndexedDB();
+        this.relationshipType = { source: '', target: '' };
       }
     },
-    deleteRelationshipType(index) {
+    async deleteRelationshipType(index) {
       this.relationshipTypes.splice(index, 1);
-      RelationshipType.saveToLocalStorage(this.relationshipTypes);
+      await RelationshipType.saveToIndexedDB(this.relationshipTypes);
     }
   }
 };

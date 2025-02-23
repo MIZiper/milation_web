@@ -74,14 +74,17 @@ export default {
       dialog: false,
       editIndex: -1,
       person: null,
-      people: Person.loadFromLocalStorage(),
+      people: [],
       defaultPhoto: '/ApplicationIcon.png',
     };
+  },
+  async created() {
+    this.people = await Person.loadFromIndexedDB();
   },
   methods: {
     newPerson() {
       this.editIndex = -1;
-      this.person = new Person('', null);
+      this.person = Person.create('', null);
       this.dialog = true;
     },
     closeDialog() {
@@ -92,9 +95,9 @@ export default {
       this.person = { ...this.people[index] };
       this.dialog = true;
     },
-    deletePerson(index) {
+    async deletePerson(index) {
       this.people.splice(index, 1);
-      Person.saveToLocalStorage(this.people);
+      await Person.saveToIndexedDB(this.people);
     },
     changePhoto(file) {
       const reader = new FileReader();
@@ -103,15 +106,22 @@ export default {
       };
       reader.readAsDataURL(file);
     },
-    savePerson() {
+    async savePerson() {
       if (this.$refs.form.validate()) {
-        const newPerson = new Person(this.person.name, this.person.photo, this.person.birthYear, this.person.contact, this.person.notes);
+        const newPerson = new Person(
+          this.person.id,
+          this.person.name,
+          this.person.photo,
+          this.person.birthYear,
+          this.person.contact,
+          this.person.notes,
+        );
         if (this.editIndex === -1) {
           this.people.push(newPerson);
         } else {
           this.people.splice(this.editIndex, 1, newPerson);
         }
-        Person.saveToLocalStorage(this.people);
+        await newPerson.saveToIndexedDB();
         this.closeDialog();
       }
       this.dialog = false;
