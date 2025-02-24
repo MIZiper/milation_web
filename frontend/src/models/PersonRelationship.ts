@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 class IndexedDBHelper {
   static dbName = 'MilationDB';
-  static dbVersion = 1;
+  static dbVersion = 2;
 
   static openDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
@@ -17,6 +17,9 @@ class IndexedDBHelper {
         }
         if (!db.objectStoreNames.contains('relationships')) {
           db.createObjectStore('relationships', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('originalPhotos')) {
+          db.createObjectStore('originalPhotos');
         }
       };
       request.onsuccess = () => resolve(request.result);
@@ -56,31 +59,55 @@ class IndexedDBHelper {
       transaction.onerror = () => reject(transaction.error);
     });
   }
+
+  static async saveBlobData(storeName: string, key: string, blob: Blob): Promise<void> {
+    const db = await IndexedDBHelper.openDB();
+    const transaction = db.transaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
+    store.put(blob, key);
+    return new Promise((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
+
+  static async loadBlobData(storeName: string, key: string): Promise<Blob | null> {
+    const db = await IndexedDBHelper.openDB();
+    const transaction = db.transaction(storeName, 'readonly');
+    const store = transaction.objectStore(storeName);
+    return new Promise((resolve, reject) => {
+      const request = store.get(key);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  }
 }
 
 export class Person {
   id: string;
   name: string;
   photo: string | null;
+  thumbnailPhoto: string | null;
   birthYear: string;
   contact: string;
   notes: string;
 
-  constructor(id: string, name: string, photo: string | null = null, birthYear: string = '', contact: string = '', notes: string = '') {
+  constructor(id: string, name: string, thumbnailPhoto: string | null = null, birthYear: string = '', contact: string = '', notes: string = '') {
     this.id = id;
     this.name = name;
-    this.photo = photo;
+    this.photo = null;
+    this.thumbnailPhoto = thumbnailPhoto;
     this.birthYear = birthYear;
     this.contact = contact;
     this.notes = notes;
   }
 
-  static create(name: string, photo: string | null = null, birthYear: string = '', contact: string = '', notes: string = ''): Person {
-    return new Person(uuidv4(), name, photo, birthYear, contact, notes);
+  static create(name: string, thumbnailPhoto: string | null = null, birthYear: string = '', contact: string = '', notes: string = ''): Person {
+    return new Person(uuidv4(), name, thumbnailPhoto, birthYear, contact, notes);
   }
 
   static load(data: any): Person {
-    return new Person(data.id, data.name, data.photo, data.birthYear, data.contact, data.notes);
+    return new Person(data.id, data.name, data.thumbnailPhoto, data.birthYear, data.contact, data.notes);
   }
 
   save(): any {
@@ -88,6 +115,7 @@ export class Person {
       id: this.id,
       name: this.name,
       photo: this.photo,
+      thumbnailPhoto: this.thumbnailPhoto,
       birthYear: this.birthYear,
       contact: this.contact,
       notes: this.notes
@@ -126,6 +154,50 @@ export class Person {
 
   static async deleteFromIndexedDB(id: string): Promise<void> {
     await IndexedDBHelper.deleteData('people', id);
+    await IndexedDBHelper.deleteData('originalPhotos', id);
+  }
+
+  async saveOriginalPhoto(photo: Blob): Promise<void> {
+    await IndexedDBHelper.saveBlobData('originalPhotos', this.id, photo);
+  }
+
+  static async loadOriginalPhoto(id: string): Promise<Blob | null> {
+    return await IndexedDBHelper.loadBlobData('originalPhotos', id);
+  }
+
+  static async createThumbnail(photo: Blob): Promise<string> {
+    return new Promise((resolve) => {
+      const img = document.createElement('img');
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.src = e.target.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const maxSize = 200; // Set the maximum size for the thumbnail
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxSize) {
+              height *= maxSize / width;
+              width = maxSize;
+            }
+          } else {
+            if (height > maxSize) {
+              width *= maxSize / height;
+              height = maxSize;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg'));
+        };
+      };
+      reader.readAsDataURL(photo);
+    });
   }
 }
 

@@ -8,7 +8,7 @@
         <v-card-title>{{ editIndex === -1 ? '添加人员' : '编辑人员' }}</v-card-title>
         <v-card-text>
           <v-form ref="form">
-            <v-img v-if="person.photo && typeof person.photo === 'string'" :src="person.photo" max-width="200"
+            <v-img v-if="person.thumbnailPhoto && typeof person.thumbnailPhoto === 'string'" :src="person.thumbnailPhoto" max-width="200"
               max-height="200" class="mb-3"></v-img>
             <v-text-field v-model="person.name" label="姓名" required></v-text-field>
             <v-file-input label="照片" @update:modelValue="changePhoto" prepend-icon="mdi-camera"
@@ -25,12 +25,17 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+    <v-dialog v-model="photoDialog" max-width="600px">
+      <v-card>
+        <v-img :src="originalPhoto" max-width="100%" max-height="100%"></v-img>
+      </v-card>
+    </v-dialog>
     <v-list>
       <v-list-item v-for="(person, index) in people" :key="index" class="hover-item">
         <v-row>
           <v-col cols="auto">
-            <v-img :src="person.photo || defaultPhoto" style="background-color: lightgray;" width="100"
-              height="100"></v-img>
+            <v-img :src="person.thumbnailPhoto || defaultPhoto" style="background-color: lightgray;" width="100"
+              height="100" @click="showOriginalPhoto(person)"></v-img>
           </v-col>
           <v-col>
             <v-list-item-title>
@@ -76,6 +81,8 @@ export default {
       person: null,
       people: [],
       defaultPhoto: '/ApplicationIcon.png',
+      photoDialog: false,
+      originalPhoto: null,
     };
   },
   async created() {
@@ -99,19 +106,24 @@ export default {
       const person = this.people.splice(index, 1)[0];
       await Person.deleteFromIndexedDB(person.id);
     },
-    changePhoto(file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        this.person.photo = e.target.result;
-      };
-      reader.readAsDataURL(file);
+    async showOriginalPhoto(person) {
+      const blob = await Person.loadOriginalPhoto(person.id);
+      if (blob) {
+        this.originalPhoto = URL.createObjectURL(blob);
+        this.photoDialog = true;
+      }
+    },
+    async changePhoto(file) {
+      const thumbnail = await Person.createThumbnail(file);
+      this.person.thumbnailPhoto = thumbnail;
+      await this.person.saveOriginalPhoto(file);
     },
     async savePerson() {
       if (this.$refs.form.validate()) {
         const newPerson = new Person(
           this.person.id,
           this.person.name,
-          this.person.photo,
+          this.person.thumbnailPhoto,
           this.person.birthYear,
           this.person.contact,
           this.person.notes,
