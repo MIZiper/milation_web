@@ -309,6 +309,18 @@ export class Relationship {
     return new Relationship(data.id, person1, person2, relationshipType);
   }
 
+  static async loadFrom(data: any, people: Person[], relationshipTypes: RelationshipType[]): Promise<Relationship> {
+    const person1 = people.find(person => person.id === data.person1Id);
+    const person2 = people.find(person => person.id === data.person2Id);
+    const relationshipType = relationshipTypes.find(type => type.id === data.relationshipTypeId);
+
+    if (!person1 || !person2 || !relationshipType) {
+      throw new Error('Invalid relationship data');
+    }
+
+    return new Relationship(data.id, person1, person2, relationshipType);
+  }
+
   save(): any {
     return {
       id: this.id,
@@ -330,6 +342,11 @@ export class Relationship {
   static async loadFromIndexedDB(): Promise<Relationship[]> {
     const data = await IndexedDBHelper.loadData('relationships');
     return Promise.all(data.map((item: any) => Relationship.load(item)));
+  }
+
+  static async loadFromIndexedDBWith(people: Person[], relationshipTypes: RelationshipType[]): Promise<Relationship[]> {
+    const data = await IndexedDBHelper.loadData('relationships');
+    return Promise.all(data.map((item: any) => Relationship.loadFrom(item, people, relationshipTypes)));
   }
 
   static async saveToIndexedDB(relationships: Relationship[]): Promise<void> {

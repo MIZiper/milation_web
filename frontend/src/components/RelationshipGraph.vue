@@ -21,13 +21,15 @@ export default {
   },
   data() {
     return {
+      people: [],
+      relationshipTypes: [],
       relationships: [],
-      people: []
     };
   },
   async created() {
     this.people = await Person.loadFromIndexedDB();
-    this.relationships = await Relationship.loadFromIndexedDB();
+    this.relationshipTypes = await RelationshipType.loadFromIndexedDB();
+    this.relationships = await Relationship.loadFromIndexedDBWith(this.people, this.relationshipTypes);
     this.drawGraph();
   },
   methods: {
