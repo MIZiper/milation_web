@@ -43,13 +43,27 @@ export default {
         .force('charge', d3.forceManyBody().strength(-300))
         .force('center', d3.forceCenter(400, 300));
 
+      const linkColor = '#999'; // Define the link color
+
       const link = svg.append('g')
         .attr('class', 'links')
         .selectAll('line')
         .data(this.relationships)
         .enter().append('line')
-        .attr('stroke-width', 2)
+        .attr('stroke-width', 1.5)
+        .attr('stroke', linkColor) // Set the stroke color for visibility
         .attr('marker-end', 'url(#arrow)');
+
+      const linkText = svg.append('g')
+        .attr('class', 'link-labels')
+        .selectAll('text')
+        .data(this.relationships)
+        .enter().append('text')
+        .attr('dx', 10)
+        .attr('dy', -5)
+        .style('font-size', '10px')
+        .style('fill', linkColor) // Set the text color to match the link color
+        .text(d => d.relationshipType.name);
 
       const node = svg.append('g')
         .attr('class', 'nodes')
@@ -76,14 +90,14 @@ export default {
       svg.append('defs').append('marker')
         .attr('id', 'arrow')
         .attr('viewBox', '0 -5 10 10')
-        .attr('refX', 15)
+        .attr('refX', 22) // Adjust refX to move the arrow outside the target node
         .attr('refY', 0)
         .attr('markerWidth', 6)
         .attr('markerHeight', 6)
         .attr('orient', 'auto')
         .append('path')
         .attr('d', 'M0,-5L10,0L0,5')
-        .attr('fill', '#000');
+        .attr('fill', linkColor); // Set the arrow color to match the link color
 
       simulation
         .nodes(this.people)
@@ -98,6 +112,10 @@ export default {
           .attr('y1', d => d.source.y)
           .attr('x2', d => d.target.x)
           .attr('y2', d => d.target.y);
+
+        linkText
+          .attr('x', d => (d.source.x + d.target.x) / 2)
+          .attr('y', d => (d.source.y + d.target.y) / 2);
 
         node.attr('transform', d => `translate(${d.x},${d.y})`);
       }
