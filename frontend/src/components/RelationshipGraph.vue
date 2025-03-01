@@ -3,14 +3,33 @@
     <v-btn icon class="fab" @click="openRelationshipEditor" color="secondary">
       <v-icon>mdi-plus</v-icon>
     </v-btn>
-    <div ref="graph" class="graph"></div>
-    <RelationshipEditor
-      ref="relationshipEditor"
-      :people="people"
-      :relationshipTypes="relationshipTypes"
-      :relationships="relationships"
-      @relationship-added="onRelationshipAdded"
-    />
+    <RelationshipEditor ref="relationshipEditor" :people="people" :relationshipTypes="relationshipTypes"
+      :relationships="relationships" @relationship-added="onRelationshipAdded" />
+    <v-row>
+      <v-col>
+        <div ref="graph" class="graph"></div>
+      </v-col>
+      <v-col cols="auto">
+        <v-list>
+          <v-list-item density="compact" v-for="(relationship, index) in relationships" :key="index">
+            <v-row>
+              <v-col>
+                <v-list-item-title>
+                  {{ relationship.source.name }} - {{ relationship.target.name }} ({{ relationship.relationshipType.name }})
+                </v-list-item-title>
+              </v-col>
+              <v-col cols="auto">
+                <v-list-item-action>
+                  <v-btn density="compact" variant="text" @click="deleteRelationship(index)">
+                    <v-icon>mdi-delete</v-icon>
+                  </v-btn>
+                </v-list-item-action>
+              </v-col>
+            </v-row>
+          </v-list-item>
+        </v-list>
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
@@ -151,11 +170,15 @@ export default {
     },
     updateGraph() {
       // Clear the existing graph elements
-      this.svg.selectAll('.links').remove();
-      this.svg.selectAll('.link-labels').remove();
-      this.svg.selectAll('.nodes').remove();
+      this.svg.selectAll('*').remove();
       // Redraw the graph with the updated data
       this.drawGraph();
+    },
+    async deleteRelationship(index) {
+      const relationship = this.relationships[index];
+      await Relationship.deleteFromIndexedDB(relationship.id);
+      this.relationships.splice(index, 1);
+      this.updateGraph();
     },
     openRelationshipEditor() {
       this.$refs.relationshipEditor.openDialog();
