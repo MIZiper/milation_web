@@ -34,7 +34,7 @@
       <v-list-item v-for="(person, index) in people" :key="index" class="hover-item">
         <v-row>
           <v-col cols="auto">
-            <v-img :src="person.thumbnailPhoto || defaultPhoto" style="background-color: lightgray;" width="100"
+            <v-img :src="person.thumbnailPhoto || defaultPhoto" width="100"
               height="100" @click="showOriginalPhoto(person)"></v-img>
           </v-col>
           <v-col>
@@ -80,7 +80,7 @@ export default {
       editIndex: -1,
       person: null,
       people: [],
-      defaultPhoto: '/ApplicationIcon.png',
+      defaultPhoto: '/whobody.png',
       photoDialog: false,
       originalPhoto: null,
     };

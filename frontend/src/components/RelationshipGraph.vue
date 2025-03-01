@@ -84,7 +84,7 @@ export default {
           .on('end', this.dragended));
 
       node.append('image')
-        .attr('xlink:href', d => d.thumbnailPhoto || '/ApplicationIcon.png')
+        .attr('xlink:href', d => d.thumbnailPhoto || '/whobody.png')
         .attr('x', -15)
         .attr('y', -15)
         .attr('width', 30)
