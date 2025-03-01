@@ -43,23 +43,20 @@
 import { RelationshipType, Person, Relationship } from '../models/PersonRelationship';
 
 export default {
+  props: {
+    people: Array,
+    relationshipTypes: Array,
+    relationships: Array
+  },
   data() {
     return {
       dialog: false,
-      people: [],
-      relationshipTypes: [],
       relationship: {
         source: null,
         target: null,
         type: null,
       },
-      relationships: [],
     };
-  },
-  async created() {
-    this.people = await Person.loadFromIndexedDB();
-    this.relationshipTypes = await RelationshipType.loadFromIndexedDB();
-    this.relationships = await Relationship.loadFromIndexedDB();
   },
   methods: {
     openDialog() {
@@ -80,8 +77,8 @@ export default {
             targetPerson,
             relationshipType
           );
-          this.relationships.push(relationship);
           await relationship.saveToIndexedDB();
+          this.$emit('relationship-added', relationship); // Emit event with the new relationship
           this.relationship = {
             source: null,
             target: null,

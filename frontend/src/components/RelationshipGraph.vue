@@ -6,6 +6,10 @@
     <div ref="graph" class="graph"></div>
     <RelationshipEditor
       ref="relationshipEditor"
+      :people="people"
+      :relationshipTypes="relationshipTypes"
+      :relationships="relationships"
+      @relationship-added="onRelationshipAdded"
     />
   </v-container>
 </template>
@@ -24,6 +28,8 @@ export default {
       people: [],
       relationshipTypes: [],
       relationships: [],
+      svg: null,
+      simulation: null,
     };
   },
   async created() {
@@ -34,18 +40,20 @@ export default {
   },
   methods: {
     drawGraph() {
-      const svg = d3.select(this.$refs.graph).append('svg')
-        .attr('width', 800)
-        .attr('height', 600);
+      if (!this.svg) {
+        this.svg = d3.select(this.$refs.graph).append('svg')
+          .attr('width', 800)
+          .attr('height', 600);
+      }
 
-      const simulation = d3.forceSimulation(this.people)
+      this.simulation = d3.forceSimulation(this.people)
         .force('link', d3.forceLink(this.relationships).id(d => d.id).distance(100))
         .force('charge', d3.forceManyBody().strength(-300))
         .force('center', d3.forceCenter(400, 300));
 
       const linkColor = '#999'; // Define the link color
 
-      const link = svg.append('g')
+      const link = this.svg.append('g')
         .attr('class', 'links')
         .selectAll('line')
         .data(this.relationships)
@@ -54,7 +62,7 @@ export default {
         .attr('stroke', linkColor) // Set the stroke color for visibility
         .attr('marker-end', 'url(#arrow)');
 
-      const linkText = svg.append('g')
+      const linkText = this.svg.append('g')
         .attr('class', 'link-labels')
         .selectAll('text')
         .data(this.relationships)
@@ -65,15 +73,15 @@ export default {
         .style('fill', linkColor) // Set the text color to match the link color
         .text(d => d.relationshipType.name);
 
-      const node = svg.append('g')
+      const node = this.svg.append('g')
         .attr('class', 'nodes')
         .selectAll('g')
         .data(this.people)
         .enter().append('g')
         .call(d3.drag()
-          .on('start', dragstarted)
-          .on('drag', dragged)
-          .on('end', dragended));
+          .on('start', this.dragstarted)
+          .on('drag', this.dragged)
+          .on('end', this.dragended));
 
       node.append('image')
         .attr('xlink:href', d => d.thumbnailPhoto || '/ApplicationIcon.png')
@@ -87,7 +95,7 @@ export default {
         .attr('dy', 5)
         .text(d => d.name);
 
-      svg.append('defs').append('marker')
+      this.svg.append('defs').append('marker')
         .attr('id', 'arrow')
         .attr('viewBox', '0 -5 10 10')
         .attr('refX', 22) // Adjust refX to move the arrow outside the target node
@@ -99,43 +107,55 @@ export default {
         .attr('d', 'M0,-5L10,0L0,5')
         .attr('fill', linkColor); // Set the arrow color to match the link color
 
-      simulation
+      this.simulation
         .nodes(this.people)
-        .on('tick', ticked);
+        .on('tick', this.ticked);
 
-      simulation.force('link')
+      this.simulation.force('link')
         .links(this.relationships);
+    },
+    ticked() {
+      const link = this.svg.selectAll('.links line');
+      const linkText = this.svg.selectAll('.link-labels text');
+      const node = this.svg.selectAll('.nodes g');
 
-      function ticked() {
-        link
-          .attr('x1', d => d.source.x)
-          .attr('y1', d => d.source.y)
-          .attr('x2', d => d.target.x)
-          .attr('y2', d => d.target.y);
+      link
+        .attr('x1', d => d.source.x)
+        .attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x)
+        .attr('y2', d => d.target.y);
 
-        linkText
-          .attr('x', d => (d.source.x + d.target.x) / 2)
-          .attr('y', d => (d.source.y + d.target.y) / 2);
+      linkText
+        .attr('x', d => (d.source.x + d.target.x) / 2)
+        .attr('y', d => (d.source.y + d.target.y) / 2);
 
-        node.attr('transform', d => `translate(${d.x},${d.y})`);
-      }
-
-      function dragstarted(event, d) {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
-      }
-
-      function dragged(event, d) {
-        d.fx = event.x;
-        d.fy = event.y;
-      }
-
-      function dragended(event, d) {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-      }
+      node.attr('transform', d => `translate(${d.x},${d.y})`);
+    },
+    dragstarted(event, d) {
+      if (!event.active) this.simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    },
+    dragged(event, d) {
+      d.fx = event.x;
+      d.fy = event.y;
+    },
+    dragended(event, d) {
+      if (!event.active) this.simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    },
+    onRelationshipAdded(newRelationship) {
+      this.relationships.push(newRelationship);
+      this.updateGraph();
+    },
+    updateGraph() {
+      // Clear the existing graph elements
+      this.svg.selectAll('.links').remove();
+      this.svg.selectAll('.link-labels').remove();
+      this.svg.selectAll('.nodes').remove();
+      // Redraw the graph with the updated data
+      this.drawGraph();
     },
     openRelationshipEditor() {
       this.$refs.relationshipEditor.openDialog();
