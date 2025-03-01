@@ -6,9 +6,6 @@
     <div ref="graph" class="graph"></div>
     <RelationshipEditor
       ref="relationshipEditor"
-      :people="people"
-      :relationships="relationships"
-      @save-relationship="addRelationship"
     />
   </v-container>
 </template>
@@ -31,8 +28,6 @@ export default {
   async created() {
     this.people = await Person.loadFromIndexedDB();
     this.relationships = await Relationship.loadFromIndexedDB();
-  },
-  mounted() {
     this.drawGraph();
   },
   methods: {
@@ -42,8 +37,8 @@ export default {
         .attr('height', 600);
 
       const simulation = d3.forceSimulation(this.people)
-        .force('link', d3.forceLink(this.relationships).id(d => d.name))
-        .force('charge', d3.forceManyBody())
+        .force('link', d3.forceLink(this.relationships).id(d => d.id).distance(100))
+        .force('charge', d3.forceManyBody().strength(-300))
         .force('center', d3.forceCenter(400, 300));
 
       const link = svg.append('g')
@@ -52,7 +47,7 @@ export default {
         .data(this.relationships)
         .enter().append('line')
         .attr('stroke-width', 2)
-        .attr('marker-end', d => d.directed ? 'url(#arrow)' : '');
+        .attr('marker-end', 'url(#arrow)');
 
       const node = svg.append('g')
         .attr('class', 'nodes')
@@ -65,7 +60,7 @@ export default {
           .on('end', dragended));
 
       node.append('image')
-        .attr('xlink:href', d => d.photo || 'path/to/default/photo.png')
+        .attr('xlink:href', d => d.thumbnailPhoto || '/ApplicationIcon.png')
         .attr('x', -15)
         .attr('y', -15)
         .attr('width', 30)
@@ -124,11 +119,6 @@ export default {
     },
     openRelationshipEditor() {
       this.$refs.relationshipEditor.openDialog();
-    },
-    async addRelationship(relationship) {
-      this.relationships.push(relationship);
-      await relationship.saveToIndexedDB();
-      this.drawGraph();
     }
   }
 };

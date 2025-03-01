@@ -143,8 +143,14 @@ export class Person {
   }
 
   static async getById(id: string): Promise<Person | null> {
-    const people = await Person.loadFromIndexedDB();
-    return people.find(person => person.id === id) || null;
+    const db = await IndexedDBHelper.openDB();
+    const transaction = db.transaction('people', 'readonly');
+    const store = transaction.objectStore('people');
+    return new Promise((resolve, reject) => {
+      const request = store.get(id);
+      request.onsuccess = () => resolve(request.result ? Person.load(request.result) : null);
+      request.onerror = () => reject(request.error);
+    });
   }
 
   async saveToIndexedDB(): Promise<void> {
@@ -251,8 +257,14 @@ export class RelationshipType {
   }
 
   static async getById(id: string): Promise<RelationshipType | null> {
-    const types = await RelationshipType.loadFromIndexedDB();
-    return types.find(type => type.id === id) || null;
+    const db = await IndexedDBHelper.openDB();
+    const transaction = db.transaction('relationshipTypes', 'readonly');
+    const store = transaction.objectStore('relationshipTypes');
+    return new Promise((resolve, reject) => {
+      const request = store.get(id);
+      request.onsuccess = () => resolve(request.result ? RelationshipType.load(request.result) : null);
+      request.onerror = () => reject(request.error);
+    });
   }
 
   async saveToIndexedDB(): Promise<void> {
@@ -269,12 +281,16 @@ export class Relationship {
   person1: Person;
   person2: Person;
   relationshipType: RelationshipType;
+  source: string; // Add source property for D3 compatibility
+  target: string; // Add target property for D3 compatibility
 
   constructor(id: string, person1: Person, person2: Person, relationshipType: RelationshipType) {
     this.id = id;
     this.person1 = person1;
     this.person2 = person2;
     this.relationshipType = relationshipType;
+    this.source = person1.id; // Initialize source
+    this.target = person2.id; // Initialize target
   }
 
   static create(person1: Person, person2: Person, relationshipType: RelationshipType): Relationship {
