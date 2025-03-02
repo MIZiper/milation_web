@@ -16,15 +16,15 @@
         <v-icon>mdi-vector-line</v-icon>
         <span>关系类型</span>
       </v-btn>
+      <v-btn @click="goToSetting" :class="{ active: activeTab === 3 }">
+        <v-icon>mdi-cog</v-icon>
+        <span>设置</span>
+      </v-btn>
     </v-bottom-navigation>
   </v-app>
 </template>
 
 <script setup lang="ts">
-import PersonList from './components/PersonList.vue';
-import RelationshipEditor from './components/RelationshipEditor.vue';
-import RelationshipGraph from './components/RelationshipGraph.vue';
-import RelationshipTypeEditor from './components/RelationshipTypeEditor.vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ref, watch } from 'vue';
 
@@ -47,6 +47,11 @@ function goToRelationshipTypeEditor() {
   router.push('/relationship-type');
 }
 
+function goToSetting() {
+  activeTab.value = 3;
+  router.push('/setting');
+}
+
 watch(route, (newRoute) => {
   if (newRoute.path === '/person-list') {
     document.title = '人员列表 - MILation';
@@ -57,6 +62,9 @@ watch(route, (newRoute) => {
   } else if (newRoute.path === '/relationship-type') {
     document.title = '关系类型 - MILation';
     activeTab.value = 2;
+  } else if (newRoute.path === '/setting') {
+    document.title = '设置 - MILation';
+    activeTab.value = 3;
   }
 }, { immediate: true });
 </script>
