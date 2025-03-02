@@ -3,33 +3,39 @@
     <v-btn icon class="fab" @click="openRelationshipEditor" color="secondary">
       <v-icon>mdi-plus</v-icon>
     </v-btn>
+    <v-btn icon class="fab-drawer" @click="drawer = !drawer" color="primary">
+      <v-icon>mdi-menu</v-icon>
+    </v-btn>
     <RelationshipEditor ref="relationshipEditor" :people="people" :relationshipTypes="relationshipTypes"
       :relationships="relationships" @relationship-added="onRelationshipAdded" />
-    <v-row>
-      <v-col>
-        <div ref="graph" class="graph"></div>
-      </v-col>
-      <v-col cols="auto">
-        <v-list>
-          <v-list-item density="compact" v-for="(relationship, index) in relationships" :key="index">
-            <v-row>
-              <v-col>
-                <v-list-item-title>
-                  {{ relationship.source.name }} - {{ relationship.target.name }} ({{ relationship.relationshipType.name }})
-                </v-list-item-title>
-              </v-col>
-              <v-col cols="auto">
-                <v-list-item-action>
-                  <v-btn density="compact" variant="text" @click="deleteRelationship(index)">
-                    <v-icon>mdi-delete</v-icon>
-                  </v-btn>
-                </v-list-item-action>
-              </v-col>
-            </v-row>
-          </v-list-item>
-        </v-list>
-      </v-col>
-    </v-row>
+
+    <div ref="graph" class="graph"></div>
+    
+    <v-navigation-drawer
+      v-model="drawer"
+      app
+      right
+      temporary
+    >
+      <v-list>
+        <v-list-item density="compact" v-for="(relationship, index) in relationships" :key="index">
+          <v-row>
+            <v-col>
+              <v-list-item-title>
+                {{ relationship.source.name }} - {{ relationship.target.name }} ({{ relationship.relationshipType.name }})
+              </v-list-item-title>
+            </v-col>
+            <v-col cols="auto">
+              <v-list-item-action>
+                <v-btn density="compact" variant="text" @click="deleteRelationship(index)">
+                  <v-icon>mdi-delete</v-icon>
+                </v-btn>
+              </v-list-item-action>
+            </v-col>
+          </v-row>
+        </v-list-item>
+      </v-list>
+    </v-navigation-drawer>
   </v-container>
 </template>
 
@@ -49,6 +55,7 @@ export default {
       relationships: [],
       svg: null,
       simulation: null,
+      drawer: false,
     };
   },
   async created() {
@@ -61,14 +68,14 @@ export default {
     drawGraph() {
       if (!this.svg) {
         this.svg = d3.select(this.$refs.graph).append('svg')
-          .attr('width', 800)
-          .attr('height', 600);
+          .attr('width', '100%')
+          .attr('height', '720');
       }
 
       this.simulation = d3.forceSimulation(this.people)
         .force('link', d3.forceLink(this.relationships).id(d => d.id).distance(100))
         .force('charge', d3.forceManyBody().strength(-300))
-        .force('center', d3.forceCenter(400, 300));
+        .force('center', d3.forceCenter(this.$refs.graph.clientWidth / 2, this.$refs.graph.clientHeight / 2));
 
       const linkColor = '#999'; // Define the link color
 
@@ -195,6 +202,15 @@ export default {
 .fab {
   position: fixed;
   bottom: 72px;
+  right: 16px;
+  width: 56px;
+  height: 56px;
+  z-index: 1000;
+}
+
+.fab-drawer {
+  position: fixed;
+  bottom: 140px;
   right: 16px;
   width: 56px;
   height: 56px;
