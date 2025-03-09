@@ -22,12 +22,13 @@
         <v-list-subheader>独立关系</v-list-subheader>
         <v-list-item density="compact" v-for="(relationship, index) in relationships" :key="index">
           <v-row>
-            <v-col>
-              <v-list-item-title>
+            <v-col cols="9">
+              <v-list-item-title class="ellipsis">
                 {{ relationship.source.name }} - {{ relationship.target.name }} ({{ relationship.relationshipType.name }})
               </v-list-item-title>
             </v-col>
-            <v-col cols="auto">
+            <v-spacer></v-spacer>
+            <v-col>
               <v-list-item-action>
                 <v-btn density="compact" variant="text" @click="deleteRelationship(index)">
                   <v-icon>mdi-delete</v-icon>
@@ -39,15 +40,16 @@
         <v-list-subheader>群组关系</v-list-subheader>
         <v-list-item density="compact" v-for="(group, index) in groups" :key="index">
           <v-row>
-            <v-col>
-              <v-list-item-title>
+            <v-col cols="6">
+              <v-list-item-title class="ellipsis">
                 {{ group.name }} ({{ group.members.length }} 人)
               </v-list-item-title>
-              <v-list-item-subtitle>
+              <v-list-item-subtitle class="ellipsis">
                 {{ group.members.map(member => member.name).join(', ') }}
               </v-list-item-subtitle>
             </v-col>
-            <v-col cols="auto">
+            <v-spacer></v-spacer>
+            <v-col>
               <v-list-item-action>
                 <v-btn density="compact" variant="text" @click="editGroup(index)">
                   <v-icon>mdi-pencil</v-icon>
@@ -108,7 +110,8 @@ export default {
       ];
 
       this.simulation = d3.forceSimulation(allEntities)
-        .force('link', d3.forceLink(allLinks).id(d => d.id).distance(100))
+        .force('link', d3.forceLink(allLinks).id(d => d.id)
+          .distance(d => d.dashed ? 75 : 175)) // Set different distances for group-member and relationship links
         .force('charge', d3.forceManyBody().strength(-300))
         .force('center', d3.forceCenter(this.$refs.graph.clientWidth / 2, this.$refs.graph.clientHeight / 2));
 
@@ -293,5 +296,11 @@ export default {
   width: 56px;
   height: 56px;
   z-index: 1000;
+}
+
+.ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>
