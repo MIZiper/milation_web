@@ -294,10 +294,6 @@ export class GroupNode {
     return new GroupNode(uuidv4(), members, relationshipType);
   }
 
-  addMember(person: Person): void {
-    this.members.push(person);
-  }
-
   save(): any {
     return {
       id: this.id,

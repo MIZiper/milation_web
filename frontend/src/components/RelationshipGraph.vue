@@ -8,6 +8,7 @@
     </v-btn>
     <RelationshipEditor ref="relationshipEditor" :people="people" :relationshipTypes="relationshipTypes"
       :relationships="relationships" :groups="groups" @relationship-added="onRelationshipAdded" />
+    <GroupEditor ref="groupEditor" :people="people" @group-updated="onGroupUpdated" />
 
     <div ref="graph" class="graph"></div>
     
@@ -48,6 +49,9 @@
             </v-col>
             <v-col cols="auto">
               <v-list-item-action>
+                <v-btn density="compact" variant="text" @click="editGroup(index)">
+                  <v-icon>mdi-pencil</v-icon>
+                </v-btn>
                 <v-btn density="compact" variant="text" @click="deleteGroup(index)">
                   <v-icon>mdi-delete</v-icon>
                 </v-btn>
@@ -63,11 +67,13 @@
 <script>
 import * as d3 from 'd3';
 import RelationshipEditor from './RelationshipEditor.vue';
+import GroupEditor from './GroupEditor.vue';
 import { RelationshipType, Person, Relationship, GroupNode } from '../models/PersonRelationship';
 
 export default {
   components: {
-    RelationshipEditor
+    RelationshipEditor,
+    GroupEditor
   },
   data() {
     return {
@@ -226,6 +232,10 @@ export default {
       await GroupNode.deleteFromIndexedDB(group.id);
       this.groups.splice(index, 1);
       this.updateGraph();
+    },
+    editGroup(index) {
+      const group = this.groups[index];
+      this.$refs.groupEditor.openDialog(group);
     },
     openRelationshipEditor() {
       this.$refs.relationshipEditor.openDialog();

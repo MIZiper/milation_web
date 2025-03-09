@@ -8,6 +8,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     DatabaseManager: typeof import('./src/components/DatabaseManager.vue')['default']
+    GroupEditor: typeof import('./src/components/GroupEditor.vue')['default']
     PersonList: typeof import('./src/components/PersonList.vue')['default']
     RelationshipEditor: typeof import('./src/components/RelationshipEditor.vue')['default']
     RelationshipGraph: typeof import('./src/components/RelationshipGraph.vue')['default']
