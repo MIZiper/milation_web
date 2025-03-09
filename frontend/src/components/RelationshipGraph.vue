@@ -89,7 +89,7 @@ export default {
   async created() {
     this.people = await Person.loadFromIndexedDB();
     this.relationshipTypes = await RelationshipType.loadFromIndexedDB();
-    this.groups = await GroupNode.loadFromIndexedDB(this.people, this.relationshipTypes);
+    this.groups = await GroupNode.loadFromIndexedDBWith(this.people, this.relationshipTypes);
     this.relationships = await Relationship.loadFromIndexedDBWith(this.people, this.groups, this.relationshipTypes);
     this.drawGraph();
   },
@@ -101,8 +101,14 @@ export default {
           .attr('height', '720');
       }
 
-      this.simulation = d3.forceSimulation([...this.people, ...this.groups])
-        .force('link', d3.forceLink(this.relationships).id(d => d.id).distance(100))
+      const allEntities = [...this.people, ...this.groups];
+      const allLinks = [
+        ...this.relationships,
+        ...this.groups.flatMap(group => group.members.map(member => ({ source: group, target: member, dashed: true })))
+      ];
+
+      this.simulation = d3.forceSimulation(allEntities)
+        .force('link', d3.forceLink(allLinks).id(d => d.id).distance(100))
         .force('charge', d3.forceManyBody().strength(-300))
         .force('center', d3.forceCenter(this.$refs.graph.clientWidth / 2, this.$refs.graph.clientHeight / 2));
 
@@ -111,11 +117,12 @@ export default {
       const link = this.svg.append('g')
         .attr('class', 'links')
         .selectAll('line')
-        .data(this.relationships)
+        .data(allLinks)
         .enter().append('line')
         .attr('stroke-width', 1.5)
         .attr('stroke', linkColor) // Set the stroke color for visibility
-        .attr('marker-end', 'url(#arrow)');
+        .attr('stroke-dasharray', d => d.dashed ? '4 2' : 'none') // Make dashed lines for group-member links
+        .attr('marker-end', d => d.dashed ? null : 'url(#arrow)'); // No arrow for dashed lines
 
       const linkText = this.svg.append('g')
         .attr('class', 'link-labels')
@@ -131,24 +138,45 @@ export default {
       const node = this.svg.append('g')
         .attr('class', 'nodes')
         .selectAll('g')
-        .data([...this.people, ...this.groups])
+        .data(allEntities)
         .enter().append('g')
         .call(d3.drag()
           .on('start', this.dragstarted)
           .on('drag', this.dragged)
           .on('end', this.dragended));
 
-      node.append('image')
+      node.filter(d => !(d instanceof GroupNode))
+        .append('image')
         .attr('xlink:href', d => d.thumbnailPhoto || '/whobody.png')
         .attr('x', -15)
         .attr('y', -15)
         .attr('width', 30)
         .attr('height', 30);
 
-      node.append('text')
-        .attr('dx', 20)
+      const groupNodeText = node.filter(d => d instanceof GroupNode)
+        .append('text')
+        .attr('dx', 0)
         .attr('dy', 5)
-        .text(d => d.name);
+        .style('font-size', '10px') // Smaller text for GroupNode
+        .style('text-anchor', 'middle') // Center text for GroupNode
+        .text(d => d.relationshipType.name);
+
+      groupNodeText.each(function() {
+        const bbox = this.getBBox();
+        d3.select(this.parentNode).insert('rect', 'text')
+          .attr('x', bbox.x - 2)
+          .attr('y', bbox.y - 2)
+          .attr('width', bbox.width + 4)
+          .attr('height', bbox.height + 4)
+          .attr('fill', 'white');
+      });
+
+      node.append('text')
+        .attr('dx', d => d instanceof GroupNode ? 0 : 20)
+        .attr('dy', d => d instanceof GroupNode ? 5 : 5)
+        .style('font-size', d => d instanceof GroupNode ? '10px' : '15px') // Smaller text for GroupNode
+        .style('text-anchor', d => d instanceof GroupNode ? 'middle' : 'start') // Center text for GroupNode
+        .text(d => d instanceof GroupNode ? d.relationshipType.name : d.name);
 
       this.svg.append('defs').append('marker')
         .attr('id', 'arrow')
@@ -163,11 +191,11 @@ export default {
         .attr('fill', linkColor); // Set the arrow color to match the link color
 
       this.simulation
-        .nodes([...this.people, ...this.groups])
+        .nodes(allEntities)
         .on('tick', this.ticked);
 
       this.simulation.force('link')
-        .links(this.relationships);
+        .links(allLinks);
     },
     ticked() {
       const link = this.svg.selectAll('.links line');
