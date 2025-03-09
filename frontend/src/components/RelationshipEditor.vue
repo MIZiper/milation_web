@@ -8,7 +8,7 @@
         <v-form ref="form">
           <v-row>
             <v-col cols="9" class="pa-0">
-              <v-select v-model="relationship.source" :items="people" item-title="name" item-value="id" label="此" required></v-select>
+              <v-select v-model="relationship.source" :items="allEntities" item-title="name" item-value="id" label="此" required></v-select>
             </v-col>
             <v-spacer></v-spacer>
             <v-btn @click="swapSourceAndTarget">
@@ -18,14 +18,14 @@
           <v-row>
             <v-spacer></v-spacer>
             <v-col cols="6" class="pa-0">
-              <v-select density="compact" v-model="relationship.type" :items="relationshipTypes" item-title="name" item-value="id" label="关系类型" required></v-select>
+              <v-select density="compact" v-model="relationship.type" :items="filteredRelationshipTypes" item-title="name" item-value="id" label="关系类型" required></v-select>
             </v-col>
             <v-spacer></v-spacer>
           </v-row>
           <v-row>
             <v-spacer></v-spacer>
             <v-col cols="9" class="pa-0">
-              <v-select v-model="relationship.target" :items="people" item-title="name" item-value="id" label="彼" required></v-select>
+              <v-select v-model="relationship.target" :items="allEntities" item-title="name" item-value="id" label="彼" required></v-select>
             </v-col>
           </v-row>
         </v-form>
@@ -59,6 +59,19 @@ export default {
       },
     };
   },
+  computed: {
+    allEntities() {
+      return [...this.people, ...this.groups];
+    },
+    filteredRelationshipTypes() {
+      const sourceIsGroup = this.groups.some(group => group.id === this.relationship.source);
+      const targetIsGroup = this.groups.some(group => group.id === this.relationship.target);
+      if (sourceIsGroup || targetIsGroup) {
+        return this.relationshipTypes.filter(type => type.target !== null);
+      }
+      return this.relationshipTypes;
+    }
+  },
   methods: {
     openDialog() {
       this.dialog = true;
@@ -68,14 +81,14 @@ export default {
     },
     async addRelationship() {
       if (this.$refs.form.validate()) {
-        const sourcePerson = this.people.find(person => person.id === this.relationship.source);
-        const targetPerson = this.people.find(person => person.id === this.relationship.target);
+        const sourceEntity = this.allEntities.find(entity => entity.id === this.relationship.source);
+        const targetEntity = this.allEntities.find(entity => entity.id === this.relationship.target);
         const relationshipType = this.relationshipTypes.find(type => type.id === this.relationship.type);
 
-        if (sourcePerson && targetPerson && relationshipType) {
+        if (sourceEntity && targetEntity && relationshipType) {
           const relationship = Relationship.create(
-            sourcePerson,
-            targetPerson,
+            sourceEntity,
+            targetEntity,
             relationshipType
           );
           await relationship.saveToIndexedDB(); // or group node

@@ -41,7 +41,7 @@
           <v-row>
             <v-col>
               <v-list-item-title>
-                {{ group.relationshipType.name }} ({{ group.members.length }} 人)
+                {{ group.name }} ({{ group.members.length }} 人)
               </v-list-item-title>
               <v-list-item-subtitle>
                 {{ group.members.map(member => member.name).join(', ') }}
@@ -89,8 +89,8 @@ export default {
   async created() {
     this.people = await Person.loadFromIndexedDB();
     this.relationshipTypes = await RelationshipType.loadFromIndexedDB();
-    this.relationships = await Relationship.loadFromIndexedDBWith(this.people, this.relationshipTypes);
     this.groups = await GroupNode.loadFromIndexedDB(this.people, this.relationshipTypes);
+    this.relationships = await Relationship.loadFromIndexedDBWith(this.people, this.groups, this.relationshipTypes);
     this.drawGraph();
   },
   methods: {
@@ -101,7 +101,7 @@ export default {
           .attr('height', '720');
       }
 
-      this.simulation = d3.forceSimulation(this.people)
+      this.simulation = d3.forceSimulation([...this.people, ...this.groups])
         .force('link', d3.forceLink(this.relationships).id(d => d.id).distance(100))
         .force('charge', d3.forceManyBody().strength(-300))
         .force('center', d3.forceCenter(this.$refs.graph.clientWidth / 2, this.$refs.graph.clientHeight / 2));
@@ -131,7 +131,7 @@ export default {
       const node = this.svg.append('g')
         .attr('class', 'nodes')
         .selectAll('g')
-        .data(this.people)
+        .data([...this.people, ...this.groups])
         .enter().append('g')
         .call(d3.drag()
           .on('start', this.dragstarted)
@@ -163,7 +163,7 @@ export default {
         .attr('fill', linkColor); // Set the arrow color to match the link color
 
       this.simulation
-        .nodes(this.people)
+        .nodes([...this.people, ...this.groups])
         .on('tick', this.ticked);
 
       this.simulation.force('link')

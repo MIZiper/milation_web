@@ -86,7 +86,12 @@ class IndexedDBHelper {
   }
 }
 
-export class Person {
+interface Entity {
+  id: string;
+  name: string;
+}
+
+export class Person implements Entity {
   id: string;
   name: string;
   photo: string | null;
@@ -279,8 +284,9 @@ export class RelationshipType {
   }
 }
 
-export class GroupNode {
+export class GroupNode implements Entity {
   id: string;
+  name: string;
   members: Person[];
   relationshipType: RelationshipType;
 
@@ -288,6 +294,8 @@ export class GroupNode {
     this.id = id;
     this.members = members;
     this.relationshipType = relationshipType;
+    const memberNames = members.slice(0, 2).map(member => member.name).join(', ');
+    this.name = `${relationshipType.name} [${memberNames}, ...]`;
   }
 
   static create(members: Person[], relationshipType: RelationshipType): GroupNode {
@@ -341,62 +349,73 @@ export class GroupNode {
   static async deleteFromIndexedDB(id: string): Promise<void> {
     await IndexedDBHelper.deleteData('groupNodes', id);
   }
+
+  static async getById(id: string): Promise<GroupNode | null> {
+    const db = await IndexedDBHelper.openDB();
+    const transaction = db.transaction('groupNodes', 'readonly');
+    const store = transaction.objectStore('groupNodes');
+    return new Promise((resolve, reject) => {
+      const request = store.get(id);
+      request.onsuccess = () => resolve(request.result ? GroupNode.load(request.result) : null);
+      request.onerror = () => reject(request.error);
+    });
+  }
 }
 
 export class Relationship {
   id: string;
-  person1: Person;
-  person2: Person;
+  sourceEntity: Entity;
+  targetEntity: Entity;
   relationshipType: RelationshipType;
   source: string; // Add source property for D3 compatibility
   target: string; // Add target property for D3 compatibility
 
-  constructor(id: string, person1: Person, person2: Person, relationshipType: RelationshipType) {
+  constructor(id: string, sourceEntity: Entity, targetEntity: Entity, relationshipType: RelationshipType) {
     this.id = id;
-    this.person1 = person1;
-    this.person2 = person2;
+    this.sourceEntity = sourceEntity;
+    this.targetEntity = targetEntity;
     this.relationshipType = relationshipType;
-    this.source = person1.id; // Initialize source
-    this.target = person2.id; // Initialize target
+    this.source = sourceEntity.id; // Initialize source
+    this.target = targetEntity.id; // Initialize target
   }
 
-  static create(person1: Person, person2: Person, relationshipType: RelationshipType): Relationship | GroupNode {
-    if (!relationshipType.target) {
-      return GroupNode.create([person1, person2], relationshipType);
+  static create(sourceEntity: Entity, targetEntity: Entity, relationshipType: RelationshipType): Relationship | GroupNode {
+    if (!relationshipType.target && targetEntity instanceof Person && sourceEntity instanceof Person) {
+      return GroupNode.create([sourceEntity, targetEntity], relationshipType);
     } else {
-      return new Relationship(uuidv4(), person1, person2, relationshipType);
+      return new Relationship(uuidv4(), sourceEntity, targetEntity, relationshipType);
     }
   }
 
   static async load(data: any): Promise<Relationship> {
-    const person1 = await Person.getById(data.person1Id);
-    const person2 = await Person.getById(data.person2Id);
+    const sourceEntity = await Person.getById(data.sourceEntityId) || await GroupNode.getById(data.sourceEntityId);
+    const targetEntity = await Person.getById(data.targetEntityId) || await GroupNode.getById(data.targetEntityId);
     const relationshipType = await RelationshipType.getById(data.relationshipTypeId);
 
-    if (!person1 || !person2 || !relationshipType) {
+    if (!sourceEntity || !targetEntity || !relationshipType) {
       throw new Error('Invalid relationship data');
     }
 
-    return new Relationship(data.id, person1, person2, relationshipType);
+    return new Relationship(data.id, sourceEntity, targetEntity, relationshipType);
   }
 
-  static async loadFrom(data: any, people: Person[], relationshipTypes: RelationshipType[]): Promise<Relationship> {
-    const person1 = people.find(person => person.id === data.person1Id);
-    const person2 = people.find(person => person.id === data.person2Id);
+  static async loadFrom(data: any, people: Person[], groups: GroupNode[], relationshipTypes: RelationshipType[]): Promise<Relationship> {
+    const sourceEntity = people.find(person => person.id === data.sourceEntityId) || groups.find(group => group.id === data.sourceEntityId);
+    const targetEntity = people.find(person => person.id === data.targetEntityId) || groups.find(group => group.id === data.targetEntityId);
     const relationshipType = relationshipTypes.find(type => type.id === data.relationshipTypeId);
 
-    if (!person1 || !person2 || !relationshipType) {
+    if (!sourceEntity || !targetEntity || !relationshipType) {
       throw new Error('Invalid relationship data');
     }
 
-    return new Relationship(data.id, person1, person2, relationshipType);
+    return new Relationship(data.id, sourceEntity, targetEntity, relationshipType);
   }
 
   save(): any {
     return {
       id: this.id,
-      person1Id: this.person1.id,
-      person2Id: this.person2.id,
+      sourceEntityId: this.sourceEntity.id,
+      targetEntityId: this.targetEntity.id,
       relationshipTypeId: this.relationshipType.id
     };
   }
@@ -415,9 +434,9 @@ export class Relationship {
     return Promise.all(data.map((item: any) => Relationship.load(item)));
   }
 
-  static async loadFromIndexedDBWith(people: Person[], relationshipTypes: RelationshipType[]): Promise<Relationship[]> {
+  static async loadFromIndexedDBWith(people: Person[], groups: GroupNode[], relationshipTypes: RelationshipType[]): Promise<Relationship[]> {
     const data = await IndexedDBHelper.loadData('relationships');
-    return Promise.all(data.map((item: any) => Relationship.loadFrom(item, people, relationshipTypes)));
+    return Promise.all(data.map((item: any) => Relationship.loadFrom(item, people, groups, relationshipTypes)));
   }
 
   static async saveToIndexedDB(relationships: Relationship[]): Promise<void> {
