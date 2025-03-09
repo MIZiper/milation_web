@@ -40,13 +40,14 @@
 </template>
 
 <script>
-import { RelationshipType, Person, Relationship } from '../models/PersonRelationship';
+import { RelationshipType, Person, Relationship, GroupNode } from '../models/PersonRelationship';
 
 export default {
   props: {
     people: Array,
     relationshipTypes: Array,
-    relationships: Array
+    relationships: Array,
+    groups: Array // Add groups as a prop
   },
   data() {
     return {
@@ -77,7 +78,7 @@ export default {
             targetPerson,
             relationshipType
           );
-          await relationship.saveToIndexedDB();
+          await relationship.saveToIndexedDB(); // or group node
           this.$emit('relationship-added', relationship); // Emit event with the new relationship
           this.relationship = {
             source: null,

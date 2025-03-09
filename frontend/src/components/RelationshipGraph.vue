@@ -7,17 +7,18 @@
       <v-icon>mdi-menu</v-icon>
     </v-btn>
     <RelationshipEditor ref="relationshipEditor" :people="people" :relationshipTypes="relationshipTypes"
-      :relationships="relationships" @relationship-added="onRelationshipAdded" />
+      :relationships="relationships" :groups="groups" @relationship-added="onRelationshipAdded" />
 
     <div ref="graph" class="graph"></div>
     
     <v-navigation-drawer
       v-model="drawer"
       app
-      right
+      :width="400"
       temporary
     >
       <v-list>
+        <v-list-subheader>独立关系</v-list-subheader>
         <v-list-item density="compact" v-for="(relationship, index) in relationships" :key="index">
           <v-row>
             <v-col>
@@ -34,6 +35,26 @@
             </v-col>
           </v-row>
         </v-list-item>
+        <v-list-subheader>群组关系</v-list-subheader>
+        <v-list-item density="compact" v-for="(group, index) in groups" :key="index">
+          <v-row>
+            <v-col>
+              <v-list-item-title>
+                {{ group.relationshipType.name }} ({{ group.members.length }} 人)
+              </v-list-item-title>
+              <v-list-item-subtitle>
+                {{ group.members.map(member => member.name).join(', ') }}
+              </v-list-item-subtitle>
+            </v-col>
+            <v-col cols="auto">
+              <v-list-item-action>
+                <v-btn density="compact" variant="text" @click="deleteGroup(index)">
+                  <v-icon>mdi-delete</v-icon>
+                </v-btn>
+              </v-list-item-action>
+            </v-col>
+          </v-row>
+        </v-list-item>
       </v-list>
     </v-navigation-drawer>
   </v-container>
@@ -42,7 +63,7 @@
 <script>
 import * as d3 from 'd3';
 import RelationshipEditor from './RelationshipEditor.vue';
-import { RelationshipType, Person, Relationship } from '../models/PersonRelationship';
+import { RelationshipType, Person, Relationship, GroupNode } from '../models/PersonRelationship';
 
 export default {
   components: {
@@ -53,6 +74,7 @@ export default {
       people: [],
       relationshipTypes: [],
       relationships: [],
+      groups: [],
       svg: null,
       simulation: null,
       drawer: false,
@@ -62,6 +84,7 @@ export default {
     this.people = await Person.loadFromIndexedDB();
     this.relationshipTypes = await RelationshipType.loadFromIndexedDB();
     this.relationships = await Relationship.loadFromIndexedDBWith(this.people, this.relationshipTypes);
+    this.groups = await GroupNode.loadFromIndexedDB(this.people, this.relationshipTypes);
     this.drawGraph();
   },
   methods: {
@@ -172,7 +195,18 @@ export default {
       d.fy = null;
     },
     onRelationshipAdded(newRelationship) {
-      this.relationships.push(newRelationship);
+      if (newRelationship instanceof GroupNode) {
+        this.groups.push(newRelationship);
+      } else {
+        this.relationships.push(newRelationship);
+      }
+      this.updateGraph();
+    },
+    onGroupUpdated(updatedGroup) {
+      const index = this.groups.findIndex(group => group.id === updatedGroup.id);
+      if (index !== -1) {
+        this.groups.splice(index, 1, updatedGroup);
+      }
       this.updateGraph();
     },
     updateGraph() {
@@ -185,6 +219,12 @@ export default {
       const relationship = this.relationships[index];
       await Relationship.deleteFromIndexedDB(relationship.id);
       this.relationships.splice(index, 1);
+      this.updateGraph();
+    },
+    async deleteGroup(index) {
+      const group = this.groups[index];
+      await GroupNode.deleteFromIndexedDB(group.id);
+      this.groups.splice(index, 1);
       this.updateGraph();
     },
     openRelationshipEditor() {

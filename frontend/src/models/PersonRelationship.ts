@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 class IndexedDBHelper {
   static dbName = 'MilationDB';
-  static dbVersion = 2;
+  static dbVersion = 3;
 
   static openDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
@@ -20,6 +20,9 @@ class IndexedDBHelper {
         }
         if (!db.objectStoreNames.contains('originalPhotos')) {
           db.createObjectStore('originalPhotos');
+        }
+        if (!db.objectStoreNames.contains('groupNodes')) {
+          db.createObjectStore('groupNodes', { keyPath: 'id' });
         }
       };
       request.onsuccess = () => resolve(request.result);
@@ -276,6 +279,74 @@ export class RelationshipType {
   }
 }
 
+export class GroupNode {
+  id: string;
+  members: Person[];
+  relationshipType: RelationshipType;
+
+  constructor(id: string, members: Person[], relationshipType: RelationshipType) {
+    this.id = id;
+    this.members = members;
+    this.relationshipType = relationshipType;
+  }
+
+  static create(members: Person[], relationshipType: RelationshipType): GroupNode {
+    return new GroupNode(uuidv4(), members, relationshipType);
+  }
+
+  addMember(person: Person): void {
+    this.members.push(person);
+  }
+
+  save(): any {
+    return {
+      id: this.id,
+      members: this.members.map(member => member.id),
+      relationshipTypeId: this.relationshipType.id
+    };
+  }
+
+  static async load(data: any): Promise<GroupNode> {
+    const members = await Promise.all(data.members.map((id: string) => Person.getById(id)));
+    const relationshipType = await RelationshipType.getById(data.relationshipTypeId);
+
+    if (!relationshipType) {
+      throw new Error('Invalid group node data');
+    }
+
+    return new GroupNode(data.id, members.filter(member => member !== null) as Person[], relationshipType);
+  }
+
+  static async loadFrom(data: any, people: Person[], relationshipTypes: RelationshipType[]): Promise<GroupNode> {
+    const members = data.members.map((id: string) => people.find(person => person.id === id));
+    const relationshipType = relationshipTypes.find(type => type.id === data.relationshipTypeId);
+
+    if (!relationshipType) {
+      throw new Error('Invalid group node data');
+    }
+
+    return new GroupNode(data.id, members.filter(member => member !== undefined) as Person[], relationshipType);
+  }
+
+  async saveToIndexedDB(): Promise<void> {
+    await IndexedDBHelper.saveData('groupNodes', this.save());
+  }
+
+  static async loadFromIndexedDB(): Promise<GroupNode[]> {
+    const data = await IndexedDBHelper.loadData('groupNodes');
+    return Promise.all(data.map((item: any) => GroupNode.load(item)));
+  }
+
+  static async loadFromIndexedDBWith(people: Person[], relationshipTypes: RelationshipType[]): Promise<GroupNode[]> {
+    const data = await IndexedDBHelper.loadData('groupNodes');
+    return Promise.all(data.map((item: any) => GroupNode.loadFrom(item, people, relationshipTypes)));
+  }
+
+  static async deleteFromIndexedDB(id: string): Promise<void> {
+    await IndexedDBHelper.deleteData('groupNodes', id);
+  }
+}
+
 export class Relationship {
   id: string;
   person1: Person;
@@ -293,8 +364,12 @@ export class Relationship {
     this.target = person2.id; // Initialize target
   }
 
-  static create(person1: Person, person2: Person, relationshipType: RelationshipType): Relationship {
-    return new Relationship(uuidv4(), person1, person2, relationshipType);
+  static create(person1: Person, person2: Person, relationshipType: RelationshipType): Relationship | GroupNode {
+    if (!relationshipType.target) {
+      return GroupNode.create([person1, person2], relationshipType);
+    } else {
+      return new Relationship(uuidv4(), person1, person2, relationshipType);
+    }
   }
 
   static async load(data: any): Promise<Relationship> {
