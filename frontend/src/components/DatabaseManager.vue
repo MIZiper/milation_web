@@ -43,11 +43,12 @@ export default {
 
             dbRequest.onsuccess = async () => {
                 const db = dbRequest.result;
-                const transaction = db.transaction(['people', 'relationshipTypes', 'relationships', 'originalPhotos'], 'readonly');
+                const transaction = db.transaction(['people', 'relationshipTypes', 'relationships', 'originalPhotos', 'groupNodes'], 'readonly');
                 const peopleStore = transaction.objectStore('people');
                 const relationshipTypesStore = transaction.objectStore('relationshipTypes');
                 const relationshipsStore = transaction.objectStore('relationships');
                 const photosStore = transaction.objectStore('originalPhotos');
+                const groupNodesStore = transaction.objectStore('groupNodes');
 
                 const people = await new Promise((resolve) => {
                     const request = peopleStore.getAll();
@@ -61,10 +62,15 @@ export default {
                     const request = relationshipsStore.getAll();
                     request.onsuccess = () => resolve(request.result);
                 });
+                const groupNodes = await new Promise((resolve) => {
+                    const request = groupNodesStore.getAll();
+                    request.onsuccess = () => resolve(request.result);
+                });
 
                 zip.file('people.json', JSON.stringify(people));
                 zip.file('relationshipTypes.json', JSON.stringify(relationshipTypes));
                 zip.file('relationships.json', JSON.stringify(relationships));
+                zip.file('groupNodes.json', JSON.stringify(groupNodes));
 
                 await new Promise((resolve) => {
                     const request = photosStore.openCursor();
@@ -87,7 +93,9 @@ export default {
                 });
 
                 const content = await zip.generateAsync({ type: 'blob' });
-                saveAs(content, 'milation-database.zip');
+                const date = new Date();
+                const formattedDate = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+                saveAs(content, `milation-database-${formattedDate}.zip`);
             };
         },
         async uploadDatabase(event) {
@@ -100,16 +108,18 @@ export default {
             const people = JSON.parse(await content.file('people.json').async('string'));
             const relationshipTypes = JSON.parse(await content.file('relationshipTypes.json').async('string'));
             const relationships = JSON.parse(await content.file('relationships.json').async('string'));
+            const groupNodes = JSON.parse(await content.file('groupNodes.json').async('string'));
 
             const dbRequest = indexedDB.open('MilationDB', 3);
 
             dbRequest.onsuccess = async () => {
                 const db = dbRequest.result;
-                const transaction = db.transaction(['people', 'relationshipTypes', 'relationships', 'originalPhotos'], 'readwrite');
+                const transaction = db.transaction(['people', 'relationshipTypes', 'relationships', 'originalPhotos', 'groupNodes'], 'readwrite');
                 const peopleStore = transaction.objectStore('people');
                 const relationshipTypesStore = transaction.objectStore('relationshipTypes');
                 const relationshipsStore = transaction.objectStore('relationships');
                 const photosStore = transaction.objectStore('originalPhotos');
+                const groupNodesStore = transaction.objectStore('groupNodes');
 
                 await new Promise((resolve) => {
                     const request = peopleStore.clear();
@@ -125,6 +135,10 @@ export default {
                 });
                 await new Promise((resolve) => {
                     const request = photosStore.clear();
+                    request.onsuccess = () => resolve();
+                });
+                await new Promise((resolve) => {
+                    const request = groupNodesStore.clear();
                     request.onsuccess = () => resolve();
                 });
 
@@ -143,6 +157,12 @@ export default {
                 for (const relationship of relationships) {
                     await new Promise((resolve) => {
                         const request = relationshipsStore.put(relationship);
+                        request.onsuccess = () => resolve();
+                    });
+                }
+                for (const groupNode of groupNodes) {
+                    await new Promise((resolve) => {
+                        const request = groupNodesStore.put(groupNode);
                         request.onsuccess = () => resolve();
                     });
                 }
