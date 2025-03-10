@@ -7,7 +7,7 @@
             </v-card-text>
             <v-card-actions>
                 <v-row>
-                    <v-col>
+                    <v-col cols="auto">
                         <v-btn variant="outlined" @click="downloadDatabase">下载数据库</v-btn>
                     </v-col>
                     <v-col>
@@ -15,6 +15,16 @@
                             accept=".zip"></v-file-input>
                     </v-col>
                 </v-row>
+            </v-card-actions>
+        </v-card>
+
+        <v-card class="mt-4">
+            <v-card-title>删除数据库</v-card-title>
+            <v-card-text>
+                <p>点击下面的按钮删除数据库。</p>
+            </v-card-text>
+            <v-card-actions>
+                <v-btn variant="outlined" color="red" @click="deleteDatabase">删除数据库</v-btn>
             </v-card-actions>
         </v-card>
     </v-container>
@@ -29,7 +39,7 @@ export default {
     methods: {
         async downloadDatabase() {
             const zip = new JSZip();
-            const dbRequest = indexedDB.open('MilationDB', 2);
+            const dbRequest = indexedDB.open('MilationDB', 3);
 
             dbRequest.onsuccess = async () => {
                 const db = dbRequest.result;
@@ -91,7 +101,7 @@ export default {
             const relationshipTypes = JSON.parse(await content.file('relationshipTypes.json').async('string'));
             const relationships = JSON.parse(await content.file('relationships.json').async('string'));
 
-            const dbRequest = indexedDB.open('MilationDB', 2);
+            const dbRequest = indexedDB.open('MilationDB', 3);
 
             dbRequest.onsuccess = async () => {
                 const db = dbRequest.result;
@@ -150,9 +160,43 @@ export default {
                     });
                 }
             };
+        },
+        async deleteDatabase() {
+            const dbRequest = indexedDB.open('MilationDB', 3);
+
+            dbRequest.onsuccess = async () => {
+                const db = dbRequest.result;
+                const transaction = db.transaction(['people', 'relationshipTypes', 'relationships', 'originalPhotos', 'groupNodes'], 'readwrite');
+                const peopleStore = transaction.objectStore('people');
+                const relationshipTypesStore = transaction.objectStore('relationshipTypes');
+                const relationshipsStore = transaction.objectStore('relationships');
+                const photosStore = transaction.objectStore('originalPhotos');
+                const groupNodesStore = transaction.objectStore('groupNodes');
+
+                await new Promise((resolve) => {
+                    const request = peopleStore.clear();
+                    request.onsuccess = () => resolve();
+                });
+                await new Promise((resolve) => {
+                    const request = relationshipTypesStore.clear();
+                    request.onsuccess = () => resolve();
+                });
+                await new Promise((resolve) => {
+                    const request = relationshipsStore.clear();
+                    request.onsuccess = () => resolve();
+                });
+                await new Promise((resolve) => {
+                    const request = photosStore.clear();
+                    request.onsuccess = () => resolve();
+                });
+                await new Promise((resolve) => {
+                    const request = groupNodesStore.clear();
+                    request.onsuccess = () => resolve();
+                });
+
+                alert('数据库已删除');
+            };
         }
-        // TODO: append to IndexedDB from database file
-        // TODO: don't save thumbnails for downloaded file?
     }
 };
 </script>
