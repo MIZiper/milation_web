@@ -51,7 +51,7 @@
                 联系方式：{{ person.contact }}
               </span>
             </v-list-item-subtitle>
-            {{ person.notes }}
+            <div style="margin-left: 1.5em;" v-html="formatNotes(person.notes)"></div>
           </v-col>
         </v-row>
         <v-list-item-action class="hover-actions">
@@ -137,6 +137,9 @@ export default {
         this.closeDialog();
       }
       this.dialog = false;
+    },
+    formatNotes(notes) {
+      return notes ? notes.replace(/\n/g, '<br>') : '';
     }
   }
 };

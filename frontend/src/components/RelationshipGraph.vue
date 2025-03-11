@@ -15,14 +15,14 @@
     <v-navigation-drawer
       v-model="drawer"
       app
-      :width="400"
+      :width="350"
       temporary
     >
       <v-list>
         <v-list-subheader>独立关系</v-list-subheader>
         <v-list-item density="compact" v-for="(relationship, index) in relationships" :key="index">
           <v-row>
-            <v-col cols="9">
+            <v-col cols="8">
               <v-list-item-title class="ellipsis">
                 {{ relationship.source.name }} - {{ relationship.target.name }} ({{ relationship.relationshipType.name }})
               </v-list-item-title>
@@ -100,7 +100,11 @@ export default {
       if (!this.svg) {
         this.svg = d3.select(this.$refs.graph).append('svg')
           .attr('width', '100%')
-          .attr('height', '720');
+          .attr('height', '720')
+          .call(d3.zoom().on('zoom', (event) => {
+            this.svg.attr('transform', event.transform);
+          }))
+          .append('g'); // Append a group element to apply zoom and pan transformations
       }
 
       const allEntities = [...this.people, ...this.groups];
@@ -278,6 +282,8 @@ export default {
 <style scoped>
 .graph {
   border: 1px solid #ccc;
+  overflow: hidden; /* Ensure the graph container does not overflow */
+  position: relative; /* Ensure the graph container is positioned correctly */
 }
 
 .fab {
