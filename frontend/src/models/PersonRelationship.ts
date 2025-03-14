@@ -99,8 +99,10 @@ export class Person implements Entity {
   birthYear: string;
   contact: string;
   notes: string;
+  timestamp: string;
+  histories: Person[];
 
-  constructor(id: string, name: string, thumbnailPhoto: string | null = null, birthYear: string = '', contact: string = '', notes: string = '') {
+  constructor(id: string, name: string, thumbnailPhoto: string | null = null, birthYear: string = '', contact: string = '', notes: string = '', timestamp: string = new Date().toISOString(), histories: Person[] = []) {
     this.id = id;
     this.name = name;
     this.photo = null;
@@ -108,6 +110,8 @@ export class Person implements Entity {
     this.birthYear = birthYear;
     this.contact = contact;
     this.notes = notes;
+    this.timestamp = timestamp;
+    this.histories = histories;
   }
 
   static create(name: string, thumbnailPhoto: string | null = null, birthYear: string = '', contact: string = '', notes: string = ''): Person {
@@ -115,7 +119,12 @@ export class Person implements Entity {
   }
 
   static load(data: any): Person {
-    return new Person(data.id, data.name, data.thumbnailPhoto, data.birthYear, data.contact, data.notes);
+    if (data.histories) {
+      data.histories = data.histories.map((history: any) => Person.load(history));
+    } else {
+      data.histories = [];
+    }
+    return new Person(data.id, data.name, data.thumbnailPhoto, data.birthYear, data.contact, data.notes, data.timestamp, data.histories);
   }
 
   save(): any {
@@ -126,7 +135,9 @@ export class Person implements Entity {
       thumbnailPhoto: this.thumbnailPhoto,
       birthYear: this.birthYear,
       contact: this.contact,
-      notes: this.notes
+      notes: this.notes,
+      timestamp: this.timestamp,
+      histories: this.histories.map(history => history.save()),
     };
   }
 

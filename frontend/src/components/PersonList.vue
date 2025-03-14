@@ -22,12 +22,41 @@
           <v-spacer></v-spacer>
           <v-btn color="blue darken-1" text @click="closeDialog">取消</v-btn>
           <v-btn color="blue darken-1" text @click="savePerson">保存</v-btn>
+          <v-btn v-if="editIndex !== -1" color="blue darken-1" text @click="saveAsNewVersion">保存为新版本</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
     <v-dialog v-model="photoDialog" max-width="600px">
       <v-card>
         <v-img :src="originalPhoto" max-width="100%" max-height="100%"></v-img>
+      </v-card>
+    </v-dialog>
+    <v-dialog v-model="historyDialog" max-width="600px">
+      <v-card>
+        <v-card-title>历史版本</v-card-title>
+        <v-card-text>
+          <v-row>
+            <v-col cols="1">
+              <v-btn icon @click="previousHistory" :disabled="historyIndex === 0">
+                <v-icon>mdi-chevron-left</v-icon>
+              </v-btn>
+            </v-col>
+            <v-col cols="10">
+              <v-img v-if="currentHistory.thumbnailPhoto" :src="currentHistory.thumbnailPhoto" max-width="200" max-height="200" class="mb-3"></v-img>
+              <v-list-item-title>{{ currentHistory.name }}</v-list-item-title>
+              <v-list-item-subtitle>时间戳：{{ currentHistory.timestamp }}</v-list-item-subtitle>
+              <v-list-item-subtitle>联系方式：{{ currentHistory.contact }}</v-list-item-subtitle>
+              <v-list-item-subtitle>备注：
+                <div style="margin-left: 1.5em;" v-html="formatNotes(currentHistory.notes)"></div>
+              </v-list-item-subtitle>
+            </v-col>
+            <v-col cols="1">
+              <v-btn icon @click="nextHistory" :disabled="historyIndex === personHistory.length - 1">
+                <v-icon>mdi-chevron-right</v-icon>
+              </v-btn>
+            </v-col>
+          </v-row>
+        </v-card-text>
       </v-card>
     </v-dialog>
     <v-list>
@@ -55,8 +84,8 @@
           </v-col>
         </v-row>
         <v-list-item-action class="hover-actions">
-          <v-btn>
-            <v-icon>mdi-account-details</v-icon>
+          <v-btn v-if="person.histories.length" @click="viewHistory(index)">
+            <v-icon>mdi-history</v-icon>
           </v-btn>
           <v-btn @click="editPerson(index)">
             <v-icon>mdi-pencil</v-icon>
@@ -83,6 +112,10 @@ export default {
       defaultPhoto: '/whobody.png',
       photoDialog: false,
       originalPhoto: null,
+      historyDialog: false,
+      personHistory: [],
+      historyIndex: 0,
+      currentHistory: {},
     };
   },
   async created() {
@@ -105,6 +138,8 @@ export default {
     async deletePerson(index) {
       const person = this.people.splice(index, 1)[0];
       await Person.deleteFromIndexedDB(person.id);
+      // delete original photo
+      // delete original photos from histories
     },
     async showOriginalPhoto(person) {
       const blob = await Person.loadOriginalPhoto(person.id);
@@ -116,7 +151,7 @@ export default {
     async changePhoto(file) {
       const thumbnail = await Person.createThumbnail(file);
       this.person.thumbnailPhoto = thumbnail;
-      await this.person.saveOriginalPhoto(file);
+      await this.person.saveOriginalPhoto(file); // error, should only save when savePerson
     },
     async savePerson() {
       if (this.$refs.form.validate()) {
@@ -127,6 +162,8 @@ export default {
           this.person.birthYear,
           this.person.contact,
           this.person.notes,
+          this.person.timestamp,
+          this.person.histories,
         );
         if (this.editIndex === -1) {
           this.people.push(newPerson);
@@ -134,9 +171,47 @@ export default {
           this.people.splice(this.editIndex, 1, newPerson);
         }
         await newPerson.saveToIndexedDB();
-        this.closeDialog();
       }
       this.dialog = false;
+    },
+    async saveAsNewVersion() {
+      if (this.$refs.form.validate()) {
+        const previousPerson = this.people[this.editIndex];
+        previousPerson.histories = [];
+        this.person.histories.unshift(previousPerson);
+        const newPerson = new Person(
+          this.person.id,
+          this.person.name,
+          this.person.thumbnailPhoto,
+          this.person.birthYear,
+          this.person.contact,
+          this.person.notes,
+          new Date().toISOString(),
+          this.person.histories,
+        );
+        this.people.splice(this.editIndex, 1, newPerson);
+        await newPerson.saveToIndexedDB();
+      }
+      this.dialog = false;
+    },
+    async viewHistory(index) {
+      const person = this.people[index];
+      this.personHistory = person.histories;
+      this.historyIndex = 0;
+      this.currentHistory = this.personHistory[this.historyIndex];
+      this.historyDialog = true;
+    },
+    previousHistory() {
+      if (this.historyIndex > 0) {
+        this.historyIndex--;
+        this.currentHistory = this.personHistory[this.historyIndex];
+      }
+    },
+    nextHistory() {
+      if (this.historyIndex < this.personHistory.length - 1) {
+        this.historyIndex++;
+        this.currentHistory = this.personHistory[this.historyIndex];
+      }
     },
     formatNotes(notes) {
       return notes ? notes.replace(/\n/g, '<br>') : '';
