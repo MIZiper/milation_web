@@ -143,8 +143,14 @@ export default {
     async deletePerson(index) {
       const person = this.people.splice(index, 1)[0];
       await Person.deleteFromIndexedDB(person.id);
-      // delete original photo
-      // delete original photos from histories
+      if (person.photo) {
+        await Person.deleteOriginalPhoto(person.photo);
+      }
+      for (const history of person.histories) {
+        if (history.photo) {
+          await Person.deleteOriginalPhoto(history.photo);
+        }
+      }
     },
     async showOriginalPhoto(person) {
       if (!person.photo) {

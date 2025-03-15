@@ -179,15 +179,18 @@ export class Person implements Entity {
 
   static async deleteFromIndexedDB(id: string): Promise<void> {
     await IndexedDBHelper.deleteData('people', id);
-    await IndexedDBHelper.deleteData('originalPhotos', id);
   }
 
   async saveOriginalPhoto(photo: Blob, key: string): Promise<void> {
     await IndexedDBHelper.saveBlobData('originalPhotos', key, photo);
   }
 
-  static async loadOriginalPhoto(id: string): Promise<Blob | null> {
-    return await IndexedDBHelper.loadBlobData('originalPhotos', id);
+  static async loadOriginalPhoto(key: string): Promise<Blob | null> {
+    return await IndexedDBHelper.loadBlobData('originalPhotos', key);
+  }
+
+  static async deleteOriginalPhoto(key: string): Promise<void> {
+    await IndexedDBHelper.deleteData('originalPhotos', key);
   }
 
   static async createThumbnail(photo: Blob): Promise<string> {
