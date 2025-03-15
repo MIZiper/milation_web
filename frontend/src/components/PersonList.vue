@@ -37,7 +37,7 @@
         <v-card-text>
           <v-row>
             <v-col cols="1">
-              <v-btn icon @click="previousHistory" :disabled="historyIndex === 0">
+              <v-btn icon variant="text" @click="previousHistory" :disabled="historyIndex === 0">
                 <v-icon>mdi-chevron-left</v-icon>
               </v-btn>
             </v-col>
@@ -51,7 +51,7 @@
               </v-list-item-subtitle>
             </v-col>
             <v-col cols="1">
-              <v-btn icon @click="nextHistory" :disabled="historyIndex === personHistory.length - 1">
+              <v-btn icon variant="text" @click="nextHistory" :disabled="historyIndex === personHistory.length - 1">
                 <v-icon>mdi-chevron-right</v-icon>
               </v-btn>
             </v-col>
