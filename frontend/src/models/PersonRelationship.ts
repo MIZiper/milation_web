@@ -84,6 +84,30 @@ class IndexedDBHelper {
       request.onerror = () => reject(request.error);
     });
   }
+
+  static async loadDataWithPagination(storeName: string, offset: number, limit: number): Promise<{ results: any[], totalCount: number }> {
+    const db = await IndexedDBHelper.openDB();
+    const transaction = db.transaction(storeName, 'readonly');
+    const store = transaction.objectStore(storeName);
+    return new Promise((resolve, reject) => {
+      const request = store.openCursor();
+      const results: any[] = [];
+      let count = 0;
+      request.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+        if (cursor) {
+          if (count >= offset && results.length < limit) {
+            results.push(cursor.value);
+          }
+          count++;
+          cursor.continue();
+        } else {
+          resolve({ results, totalCount: count });
+        }
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
 }
 
 interface Entity {
@@ -223,6 +247,11 @@ export class Person implements Entity {
       };
       reader.readAsDataURL(photo);
     });
+  }
+
+  static async loadFromIndexedDBWithPagination(offset: number, limit: number): Promise<{ people: Person[], totalCount: number }> {
+    const { results, totalCount } = await IndexedDBHelper.loadDataWithPagination('people', offset, limit);
+    return { people: results.map((item: any) => Person.load(item)), totalCount };
   }
 }
 

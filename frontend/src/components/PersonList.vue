@@ -96,6 +96,7 @@
         </v-list-item-action>
       </v-list-item>
     </v-list>
+    <v-pagination v-model="page" :length="totalPages" @input="loadPeople"></v-pagination>
   </v-container>
 </template>
 
@@ -118,12 +119,26 @@ export default {
       historyIndex: 0,
       currentHistory: {},
       newPhoto: null, // Add a new data property to store the new photo temporarily
+      page: 1,
+      itemsPerPage: 10,
+      totalPages: 0,
     };
   },
   async created() {
-    this.people = await Person.loadFromIndexedDB();
+    await this.loadPeople();
+  },
+  watch: {
+    page() {
+      this.loadPeople();
+    }
   },
   methods: {
+    async loadPeople() {
+      const offset = (this.page - 1) * this.itemsPerPage;
+      const { people, totalCount } = await Person.loadFromIndexedDBWithPagination(offset, this.itemsPerPage);
+      this.people = people;
+      this.totalPages = Math.ceil(totalCount / this.itemsPerPage);
+    },
     newPerson() {
       this.editIndex = -1;
       this.person = Person.create('', null);
@@ -145,6 +160,7 @@ export default {
       await Person.deleteFromIndexedDB(person.id);
       // delete original photo
       // delete original photos from histories
+      await this.loadPeople(); // Reload people after deletion
     },
     async showOriginalPhoto(person) {
       if (!person.photo) {
@@ -187,6 +203,7 @@ export default {
           await newPerson.saveOriginalPhoto(this.newPhoto, this.person.photo); // Save the new photo with the UUID
           this.newPhoto = null; // Clear the temporary photo
         }
+        await this.loadPeople(); // Reload people after saving
       }
       this.dialog = false;
     },
@@ -220,6 +237,7 @@ export default {
           await newPerson.saveOriginalPhoto(this.newPhoto, this.person.photo); // Save the new photo with the UUID
           this.newPhoto = null; // Clear the temporary photo
         }
+        await this.loadPeople(); // Reload people after saving
       }
       this.dialog = false;
     },
