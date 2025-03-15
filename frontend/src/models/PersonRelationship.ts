@@ -102,10 +102,10 @@ export class Person implements Entity {
   timestamp: string;
   histories: Person[];
 
-  constructor(id: string, name: string, thumbnailPhoto: string | null = null, birthYear: string = '', contact: string = '', notes: string = '', timestamp: string = new Date().toISOString(), histories: Person[] = []) {
+  constructor(id: string, name: string, thumbnailPhoto: string | null = null, birthYear: string = '', contact: string = '', notes: string = '', timestamp: string = new Date().toISOString(), histories: Person[] = [], photo: string | null = null) {
     this.id = id;
     this.name = name;
-    this.photo = null;
+    this.photo = photo;
     this.thumbnailPhoto = thumbnailPhoto;
     this.birthYear = birthYear;
     this.contact = contact;
@@ -124,7 +124,7 @@ export class Person implements Entity {
     } else {
       data.histories = [];
     }
-    return new Person(data.id, data.name, data.thumbnailPhoto, data.birthYear, data.contact, data.notes, data.timestamp, data.histories);
+    return new Person(data.id, data.name, data.thumbnailPhoto, data.birthYear, data.contact, data.notes, data.timestamp, data.histories, data.photo);
   }
 
   save(): any {
@@ -182,8 +182,8 @@ export class Person implements Entity {
     await IndexedDBHelper.deleteData('originalPhotos', id);
   }
 
-  async saveOriginalPhoto(photo: Blob): Promise<void> {
-    await IndexedDBHelper.saveBlobData('originalPhotos', this.id, photo);
+  async saveOriginalPhoto(photo: Blob, key: string): Promise<void> {
+    await IndexedDBHelper.saveBlobData('originalPhotos', key, photo);
   }
 
   static async loadOriginalPhoto(id: string): Promise<Blob | null> {

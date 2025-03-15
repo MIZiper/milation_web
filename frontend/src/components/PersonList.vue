@@ -42,7 +42,7 @@
               </v-btn>
             </v-col>
             <v-col cols="10">
-              <v-img v-if="currentHistory.thumbnailPhoto" :src="currentHistory.thumbnailPhoto" max-width="200" max-height="200" class="mb-3"></v-img>
+              <v-img v-if="currentHistory.thumbnailPhoto" :src="currentHistory.thumbnailPhoto" @click="showOriginalPhoto(currentHistory)" max-width="200" max-height="200" class="mb-3"></v-img>
               <v-list-item-title>{{ currentHistory.name }}</v-list-item-title>
               <v-list-item-subtitle>时间戳：{{ currentHistory.timestamp }}</v-list-item-subtitle>
               <v-list-item-subtitle>联系方式：{{ currentHistory.contact }}</v-list-item-subtitle>
@@ -101,6 +101,7 @@
 
 <script>
 import { Person } from '../models/PersonRelationship';
+import { v4 as uuidv4 } from 'uuid';
 
 export default {
   data() {
@@ -116,6 +117,7 @@ export default {
       personHistory: [],
       historyIndex: 0,
       currentHistory: {},
+      newPhoto: null, // Add a new data property to store the new photo temporarily
     };
   },
   async created() {
@@ -125,14 +127,17 @@ export default {
     newPerson() {
       this.editIndex = -1;
       this.person = Person.create('', null);
+      this.newPhoto = null; // Clear the temporary photo
       this.dialog = true;
     },
     closeDialog() {
       this.dialog = false;
+      this.newPhoto = null; // Clear the temporary photo
     },
     editPerson(index) {
       this.editIndex = index;
       this.person = { ...this.people[index] };
+      this.newPhoto = null; // Clear the temporary photo
       this.dialog = true;
     },
     async deletePerson(index) {
@@ -142,7 +147,10 @@ export default {
       // delete original photos from histories
     },
     async showOriginalPhoto(person) {
-      const blob = await Person.loadOriginalPhoto(person.id);
+      if (!person.photo) {
+        return;
+      }
+      const blob = await Person.loadOriginalPhoto(person.photo);
       if (blob) {
         this.originalPhoto = URL.createObjectURL(blob);
         this.photoDialog = true;
@@ -151,10 +159,13 @@ export default {
     async changePhoto(file) {
       const thumbnail = await Person.createThumbnail(file);
       this.person.thumbnailPhoto = thumbnail;
-      await this.person.saveOriginalPhoto(file); // error, should only save when savePerson
+      this.newPhoto = file; // Store the new photo temporarily
     },
     async savePerson() {
       if (this.$refs.form.validate()) {
+        if (this.newPhoto && !this.person.photo) {
+          this.person.photo = uuidv4(); // Create a new UUID for the original photo
+        }
         const newPerson = new Person(
           this.person.id,
           this.person.name,
@@ -164,6 +175,7 @@ export default {
           this.person.notes,
           this.person.timestamp,
           this.person.histories,
+          this.person.photo // Save the photo ID
         );
         if (this.editIndex === -1) {
           this.people.push(newPerson);
@@ -171,6 +183,10 @@ export default {
           this.people.splice(this.editIndex, 1, newPerson);
         }
         await newPerson.saveToIndexedDB();
+        if (this.newPhoto) {
+          await newPerson.saveOriginalPhoto(this.newPhoto, this.person.photo); // Save the new photo with the UUID
+          this.newPhoto = null; // Clear the temporary photo
+        }
       }
       this.dialog = false;
     },
@@ -179,6 +195,14 @@ export default {
         const previousPerson = this.people[this.editIndex];
         previousPerson.histories = [];
         this.person.histories.unshift(previousPerson);
+        if (this.newPhoto) {
+          this.person.photo = uuidv4(); // Create a new UUID for the original photo
+        } else {
+          // force to remove the photo
+          // otherwise error if user doesn't select a photo for new version, but edit later, which will overwrite the original photo
+          this.person.photo = null;
+          this.person.thumbnailPhoto = null;
+        }
         const newPerson = new Person(
           this.person.id,
           this.person.name,
@@ -188,9 +212,14 @@ export default {
           this.person.notes,
           new Date().toISOString(),
           this.person.histories,
+          this.person.photo // Save the photo ID
         );
         this.people.splice(this.editIndex, 1, newPerson);
         await newPerson.saveToIndexedDB();
+        if (this.newPhoto) {
+          await newPerson.saveOriginalPhoto(this.newPhoto, this.person.photo); // Save the new photo with the UUID
+          this.newPhoto = null; // Clear the temporary photo
+        }
       }
       this.dialog = false;
     },
