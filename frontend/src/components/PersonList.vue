@@ -216,7 +216,7 @@ export default {
           this.person.birthYear,
           this.person.contact,
           this.person.notes,
-          new Date().toISOString(),
+          new Date().toLocaleString(),
           this.person.histories,
           this.person.photo // Save the photo ID
         );

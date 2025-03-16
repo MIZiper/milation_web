@@ -19,6 +19,17 @@
         </v-card>
 
         <v-card class="mt-4">
+            <v-card-title>注意事项</v-card-title>
+            <v-card-text>
+                <p>MILation网页版所有数据存储于浏览器IndexedDB中，需要自己管理。</p>
+                <p>如果有清除浏览器垃圾习惯，请谨慎操作，提前测试、备份。</p>
+            </v-card-text>
+            <v-card-actions>
+                <v-btn variant="outlined" href="https://github.com/MIZiper/milation_web.git" target="_blank">查看源代码</v-btn>
+            </v-card-actions>
+        </v-card>
+
+        <v-card class="mt-4">
             <v-card-title>删除数据库</v-card-title>
             <v-card-text>
                 <p>点击下面的按钮删除数据库。</p>
