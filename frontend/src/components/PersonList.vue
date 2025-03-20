@@ -8,8 +8,8 @@
         <v-card-title>{{ editIndex === -1 ? '添加人员' : '编辑人员' }}</v-card-title>
         <v-card-text>
           <v-form ref="form">
-            <v-img v-if="person.thumbnailPhoto && typeof person.thumbnailPhoto === 'string'" :src="person.thumbnailPhoto" max-width="200"
-              max-height="200" class="mb-3"></v-img>
+            <v-img v-if="person.thumbnailPhoto && typeof person.thumbnailPhoto === 'string'"
+              :src="person.thumbnailPhoto" max-width="200" max-height="200" class="mb-3"></v-img>
             <v-text-field v-model="person.name" label="姓名" required></v-text-field>
             <v-file-input label="照片" @update:modelValue="changePhoto" prepend-icon="mdi-camera"
               accept="image/*"></v-file-input>
@@ -42,12 +42,15 @@
               </v-btn>
             </v-col>
             <v-col cols="10">
-              <v-img v-if="currentHistory.thumbnailPhoto" :src="currentHistory.thumbnailPhoto" @click="showOriginalPhoto(currentHistory)" max-width="200" max-height="200" class="mb-3"></v-img>
+              <v-img v-if="currentHistory.thumbnailPhoto" :src="currentHistory.thumbnailPhoto"
+                @click="showOriginalPhoto(currentHistory)" max-width="200" max-height="200" class="mb-3"></v-img>
               <v-list-item-title>{{ currentHistory.name }}</v-list-item-title>
-              <v-list-item-subtitle>时间戳：{{ currentHistory.timestamp }}</v-list-item-subtitle>
+              <v-list-item-subtitle>添加日期：{{ new Date(currentHistory.timestamp).toLocaleDateString()
+                }}</v-list-item-subtitle>
               <v-list-item-subtitle>联系方式：{{ currentHistory.contact }}</v-list-item-subtitle>
+              <br/>
               <v-list-item-subtitle>备注：
-                <div style="margin-left: 1.5em;" v-html="formatNotes(currentHistory.notes)"></div>
+                <div v-html="formatNotes(currentHistory.notes)"></div>
               </v-list-item-subtitle>
             </v-col>
             <v-col cols="1">
@@ -63,24 +66,37 @@
       <v-list-item v-for="(person, index) in people" :key="index" class="hover-item">
         <v-row>
           <v-col cols="auto">
-            <v-img :src="person.thumbnailPhoto || defaultPhoto" width="100"
-              height="100" @click="showOriginalPhoto(person)"></v-img>
+            <v-img :src="person.thumbnailPhoto || defaultPhoto" width="100" height="100"
+              @click="showOriginalPhoto(person)"></v-img>
           </v-col>
           <v-col>
             <v-list-item-title>
               <v-icon>mdi-account</v-icon>
               {{ person.name }}
             </v-list-item-title>
-            <v-list-item-subtitle>
-              <v-icon>mdi-information</v-icon>
-              <span v-if="person.birthYear">
-                出生年份：{{ person.birthYear }}
-              </span>
-              <span v-if="person.contact">
-                联系方式：{{ person.contact }}
-              </span>
-            </v-list-item-subtitle>
-            <div style="margin-left: 1.5em;" v-html="formatNotes(person.notes)"></div>
+
+            <v-row class="ma-0">
+              <v-col class="pa-0" cols="12" sm="4" v-if="person.birthYear">
+                <v-list-item-subtitle>
+                  <v-icon>mdi-calendar</v-icon>
+                  {{ person.birthYear }}
+                </v-list-item-subtitle>
+              </v-col>
+              <v-col class="pa-0" cols="12" sm="4" v-if="person.contact">
+                <v-list-item-subtitle>
+                  <v-icon>mdi-link</v-icon>
+                  {{ person.contact }}
+                </v-list-item-subtitle>
+              </v-col>
+              <v-col class="pa-0" cols="12" sm="4" v-if="person.timestamp">
+                <v-list-item-subtitle>
+                  <v-icon>mdi-update</v-icon>
+                  {{ new Date(person.timestamp).toLocaleDateString() }}
+                </v-list-item-subtitle>
+              </v-col>
+            </v-row>
+
+            <div v-html="formatNotes(person.notes)"></div>
           </v-col>
         </v-row>
         <v-list-item-action class="hover-actions">
@@ -216,7 +232,7 @@ export default {
           this.person.birthYear,
           this.person.contact,
           this.person.notes,
-          new Date().toLocaleString(),
+          new Date().toISOString(),
           this.person.histories,
           this.person.photo // Save the photo ID
         );

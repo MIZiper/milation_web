@@ -102,7 +102,7 @@ export class Person implements Entity {
   timestamp: string;
   histories: Person[];
 
-  constructor(id: string, name: string, thumbnailPhoto: string | null = null, birthYear: string = '', contact: string = '', notes: string = '', timestamp: string = new Date().toLocaleString(), histories: Person[] = [], photo: string | null = null) {
+  constructor(id: string, name: string, thumbnailPhoto: string | null = null, birthYear: string = '', contact: string = '', notes: string = '', timestamp: string = new Date().toISOString(), histories: Person[] = [], photo: string | null = null) {
     this.id = id;
     this.name = name;
     this.photo = photo;
