@@ -1,6 +1,6 @@
 {
   "name": "milation_web-frontend",
-  "version": "0.1.0-pre",
+  "version": "0.1.0",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",

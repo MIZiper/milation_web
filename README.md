@@ -13,7 +13,18 @@ MILation 是一个基于网页前端的人员关系管理工具。
 
 ![MILation关系管理](./doc/images/relationships.jpeg)
 
-使用场景主要是人员较多但是又不常见的情况，每次见面需要更新信息，以及总是想不起谁是谁的时候。
+使用场景主要是人员较多但是又不常见的情况，每次见面需要更新信息，以及总是想不起谁是谁的时候（这会是什么场景呢😅）。
+
+## 使用
+
+只是简单的Vuetify应用，自行编译布署就可以了。
+
+```bash
+cd frontend && npm install
+npm run build
+```
+
+都是静态文件，也可以访问<http://milation.mizip.net/>使用。
 
 ## 其它
 

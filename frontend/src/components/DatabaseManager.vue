@@ -190,6 +190,8 @@ export default {
                         request.onsuccess = () => resolve();
                     });
                 }
+
+                alert('数据库已导入');
             };
         },
         async deleteDatabase() {
