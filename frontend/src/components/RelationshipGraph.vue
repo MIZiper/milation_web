@@ -154,7 +154,7 @@ export default {
 
       node.filter(d => !(d instanceof GroupNode))
         .append('image')
-        .attr('xlink:href', d => d.thumbnailPhoto || '/whobody.png')
+        .attr('xlink:href', d => d.thumbnailPhoto || './whobody.png')
         .attr('x', -15)
         .attr('y', -15)
         .attr('width', 30)

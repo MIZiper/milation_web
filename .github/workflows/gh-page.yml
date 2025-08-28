@@ -21,6 +21,11 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Extract repo name and set public path
+        run: |
+          REPO_NAME=$(basename ${{ github.repository }})
+          echo "VITE_PUBLIC_PATH=/$REPO_NAME/" >> $GITHUB_ENV
+
       - name: Install dependencies
         run: |
           cd frontend

@@ -126,7 +126,7 @@ export default {
       editIndex: -1,
       person: null,
       people: [],
-      defaultPhoto: '/whobody.png',
+      defaultPhoto: './whobody.png',
       photoDialog: false,
       originalPhoto: null,
       historyDialog: false,
