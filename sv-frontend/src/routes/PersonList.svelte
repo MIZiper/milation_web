@@ -255,7 +255,9 @@
 
   <Modal isOpen={photoDialog} toggle={() => photoDialog = false} size="lg">
     <ModalBody>
-      <img src={originalPhoto} alt="原图" style="max-width: 100%; max-height: 80vh;" />
+      <div class="d-flex justify-content-center">
+        <img src={originalPhoto} alt="原图" style="max-width: 100%; max-height: 80vh;" />
+      </div>
     </ModalBody>
   </Modal>
 

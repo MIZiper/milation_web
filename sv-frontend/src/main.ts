@@ -1,4 +1,5 @@
 import { mount } from 'svelte'
+import './modal-fix.css'
 import App from './App.svelte'
 
 const app = mount(App, {

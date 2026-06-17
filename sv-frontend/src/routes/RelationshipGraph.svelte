@@ -262,7 +262,7 @@
   />
 
   <Offcanvas isOpen={drawer} toggle={() => drawer = !drawer}>
-    <OffcanvasHeader toggle={() => drawer = !drawer}>
+    <OffcanvasHeader>
       关系列表
     </OffcanvasHeader>
     <OffcanvasBody>
