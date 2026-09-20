@@ -1,5 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
-
 class IndexedDBHelper {
   static dbName = 'MilationDB';
   static dbVersion = 3;
@@ -7,7 +5,7 @@ class IndexedDBHelper {
   static openDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(IndexedDBHelper.dbName, IndexedDBHelper.dbVersion);
-      request.onupgradeneeded = (event) => {
+      request.onupgradeneeded = () => {
         const db = request.result;
         if (!db.objectStoreNames.contains('people')) {
           db.createObjectStore('people', { keyPath: 'id' });
@@ -115,7 +113,7 @@ export class Person implements Entity {
   }
 
   static create(name: string, thumbnailPhoto: string | null = null, birthYear: string = '', contact: string = '', notes: string = ''): Person {
-    return new Person(uuidv4(), name, thumbnailPhoto, birthYear, contact, notes);
+    return new Person(crypto.randomUUID(), name, thumbnailPhoto, birthYear, contact, notes);
   }
 
   static load(data: any): Person {
@@ -139,15 +137,6 @@ export class Person implements Entity {
       timestamp: this.timestamp,
       histories: this.histories.map(history => history.save()),
     };
-  }
-
-  static loadFromLocalStorage(): Person[] {
-    const data = JSON.parse(localStorage.getItem('people') || '[]');
-    return data.map((item: any) => Person.load(item));
-  }
-
-  static saveToLocalStorage(people: Person[]): void {
-    localStorage.setItem('people', JSON.stringify(people.map(person => person.save())));
   }
 
   static async loadFromIndexedDB(): Promise<Person[]> {
@@ -181,6 +170,23 @@ export class Person implements Entity {
     await IndexedDBHelper.deleteData('people', id);
   }
 
+  static async deleteCascade(person: Person): Promise<void> {
+    await Person.deleteFromIndexedDB(person.id);
+    await Relationship.deleteForEntity(person.id);
+
+    const rawGroups = await IndexedDBHelper.loadData('groupNodes');
+    for (const raw of rawGroups) {
+      const members: string[] = raw.members || [];
+      if (!members.includes(person.id)) continue;
+      const remaining = members.filter((id: string) => id !== person.id);
+      if (remaining.length < 2) {
+        await GroupNode.deleteCascade(raw.id);
+      } else {
+        await IndexedDBHelper.saveData('groupNodes', { ...raw, members: remaining });
+      }
+    }
+  }
+
   async saveOriginalPhoto(photo: Blob, key: string): Promise<void> {
     await IndexedDBHelper.saveBlobData('originalPhotos', key, photo);
   }
@@ -198,11 +204,11 @@ export class Person implements Entity {
       const img = document.createElement('img');
       const reader = new FileReader();
       reader.onload = (e) => {
-        img.src = e.target.result as string;
+        img.src = e.target!.result as string;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          const maxSize = 200; // Set the maximum size for the thumbnail
+          const ctx = canvas.getContext('2d')!;
+          const maxSize = 200;
           let width = img.width;
           let height = img.height;
 
@@ -243,7 +249,7 @@ export class RelationshipType {
   }
 
   static create(source: string, target: string | null = null): RelationshipType {
-    return new RelationshipType(uuidv4(), source, target);
+    return new RelationshipType(crypto.randomUUID(), source, target);
   }
 
   static load(data: any): RelationshipType {
@@ -256,15 +262,6 @@ export class RelationshipType {
       source: this.source,
       target: this.target,
     };
-  }
-
-  static loadFromLocalStorage(): RelationshipType[] {
-    const data = JSON.parse(localStorage.getItem('relationshipTypes') || '[]');
-    return data.map((item: any) => RelationshipType.load(item));
-  }
-
-  static saveToLocalStorage(relationshipTypes: RelationshipType[]): void {
-    localStorage.setItem('relationshipTypes', JSON.stringify(relationshipTypes.map(type => type.save())));
   }
 
   static async loadFromIndexedDB(): Promise<RelationshipType[]> {
@@ -313,7 +310,7 @@ export class GroupNode implements Entity {
   }
 
   static create(members: Person[], relationshipType: RelationshipType): GroupNode {
-    return new GroupNode(uuidv4(), members, relationshipType);
+    return new GroupNode(crypto.randomUUID(), members, relationshipType);
   }
 
   save(): any {
@@ -343,7 +340,7 @@ export class GroupNode implements Entity {
       throw new Error('Invalid group node data');
     }
 
-    return new GroupNode(data.id, members.filter(member => member !== undefined) as Person[], relationshipType);
+    return new GroupNode(data.id, members.filter((member: Person | undefined): member is Person => member !== undefined) as Person[], relationshipType);
   }
 
   async saveToIndexedDB(): Promise<void> {
@@ -357,11 +354,24 @@ export class GroupNode implements Entity {
 
   static async loadFromIndexedDBWith(people: Person[], relationshipTypes: RelationshipType[]): Promise<GroupNode[]> {
     const data = await IndexedDBHelper.loadData('groupNodes');
-    return Promise.all(data.map((item: any) => GroupNode.loadFrom(item, people, relationshipTypes)));
+    const groups: GroupNode[] = [];
+    for (const item of data) {
+      try {
+        groups.push(await GroupNode.loadFrom(item, people, relationshipTypes));
+      } catch {
+        // skip group nodes with missing relationship types
+      }
+    }
+    return groups;
   }
 
   static async deleteFromIndexedDB(id: string): Promise<void> {
     await IndexedDBHelper.deleteData('groupNodes', id);
+  }
+
+  static async deleteCascade(id: string): Promise<void> {
+    await GroupNode.deleteFromIndexedDB(id);
+    await Relationship.deleteForEntity(id);
   }
 
   static async getById(id: string): Promise<GroupNode | null> {
@@ -381,23 +391,23 @@ export class Relationship {
   sourceEntity: Entity;
   targetEntity: Entity;
   relationshipType: RelationshipType;
-  source: string; // Add source property for D3 compatibility
-  target: string; // Add target property for D3 compatibility
+  source: string;
+  target: string;
 
   constructor(id: string, sourceEntity: Entity, targetEntity: Entity, relationshipType: RelationshipType) {
     this.id = id;
     this.sourceEntity = sourceEntity;
     this.targetEntity = targetEntity;
     this.relationshipType = relationshipType;
-    this.source = sourceEntity.id; // Initialize source
-    this.target = targetEntity.id; // Initialize target
+    this.source = sourceEntity.id;
+    this.target = targetEntity.id;
   }
 
   static create(sourceEntity: Entity, targetEntity: Entity, relationshipType: RelationshipType): Relationship | GroupNode {
     if (!relationshipType.target && targetEntity instanceof Person && sourceEntity instanceof Person) {
       return GroupNode.create([sourceEntity, targetEntity], relationshipType);
     } else {
-      return new Relationship(uuidv4(), sourceEntity, targetEntity, relationshipType);
+      return new Relationship(crypto.randomUUID(), sourceEntity, targetEntity, relationshipType);
     }
   }
 
@@ -434,15 +444,6 @@ export class Relationship {
     };
   }
 
-  static loadFromLocalStorage(): Relationship[] {
-    const data = JSON.parse(localStorage.getItem('relationships') || '[]');
-    return data.map((item: any) => Relationship.load(item));
-  }
-
-  static saveToLocalStorage(relationships: Relationship[]): void {
-    localStorage.setItem('relationships', JSON.stringify(relationships.map(rel => rel.save())));
-  }
-
   static async loadFromIndexedDB(): Promise<Relationship[]> {
     const data = await IndexedDBHelper.loadData('relationships');
     return Promise.all(data.map((item: any) => Relationship.load(item)));
@@ -450,7 +451,15 @@ export class Relationship {
 
   static async loadFromIndexedDBWith(people: Person[], groups: GroupNode[], relationshipTypes: RelationshipType[]): Promise<Relationship[]> {
     const data = await IndexedDBHelper.loadData('relationships');
-    return Promise.all(data.map((item: any) => Relationship.loadFrom(item, people, groups, relationshipTypes)));
+    const relationships: Relationship[] = [];
+    for (const item of data) {
+      try {
+        relationships.push(await Relationship.loadFrom(item, people, groups, relationshipTypes));
+      } catch {
+        // skip orphaned relationships pointing to deleted entities
+      }
+    }
+    return relationships;
   }
 
   static async saveToIndexedDB(relationships: Relationship[]): Promise<void> {
@@ -465,5 +474,14 @@ export class Relationship {
 
   static async deleteFromIndexedDB(id: string): Promise<void> {
     await IndexedDBHelper.deleteData('relationships', id);
+  }
+
+  static async deleteForEntity(entityId: string): Promise<void> {
+    const data = await IndexedDBHelper.loadData('relationships');
+    for (const item of data) {
+      if (item.sourceEntityId === entityId || item.targetEntityId === entityId) {
+        await IndexedDBHelper.deleteData('relationships', item.id);
+      }
+    }
   }
 }

@@ -17,11 +17,11 @@ MILation 是一个基于网页前端的人员关系管理工具。
 
 ## 使用
 
-只是简单的Vuetify应用，自行编译布署就可以了。
+只是简单的前端应用，自行编译布署就可以了。
 
 ```bash
-cd frontend && npm install
-npm run build
+cd sv-frontend && pnpm install
+pnpm run build
 ```
 
 都是静态文件，也可以访问<http://milation.mizip.net/>使用。
