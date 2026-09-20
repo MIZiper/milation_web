@@ -170,6 +170,23 @@ export class Person implements Entity {
     await IndexedDBHelper.deleteData('people', id);
   }
 
+  static async deleteCascade(person: Person): Promise<void> {
+    await Person.deleteFromIndexedDB(person.id);
+    await Relationship.deleteForEntity(person.id);
+
+    const rawGroups = await IndexedDBHelper.loadData('groupNodes');
+    for (const raw of rawGroups) {
+      const members: string[] = raw.members || [];
+      if (!members.includes(person.id)) continue;
+      const remaining = members.filter((id: string) => id !== person.id);
+      if (remaining.length < 2) {
+        await GroupNode.deleteCascade(raw.id);
+      } else {
+        await IndexedDBHelper.saveData('groupNodes', { ...raw, members: remaining });
+      }
+    }
+  }
+
   async saveOriginalPhoto(photo: Blob, key: string): Promise<void> {
     await IndexedDBHelper.saveBlobData('originalPhotos', key, photo);
   }
@@ -337,11 +354,24 @@ export class GroupNode implements Entity {
 
   static async loadFromIndexedDBWith(people: Person[], relationshipTypes: RelationshipType[]): Promise<GroupNode[]> {
     const data = await IndexedDBHelper.loadData('groupNodes');
-    return Promise.all(data.map((item: any) => GroupNode.loadFrom(item, people, relationshipTypes)));
+    const groups: GroupNode[] = [];
+    for (const item of data) {
+      try {
+        groups.push(await GroupNode.loadFrom(item, people, relationshipTypes));
+      } catch {
+        // skip group nodes with missing relationship types
+      }
+    }
+    return groups;
   }
 
   static async deleteFromIndexedDB(id: string): Promise<void> {
     await IndexedDBHelper.deleteData('groupNodes', id);
+  }
+
+  static async deleteCascade(id: string): Promise<void> {
+    await GroupNode.deleteFromIndexedDB(id);
+    await Relationship.deleteForEntity(id);
   }
 
   static async getById(id: string): Promise<GroupNode | null> {
@@ -421,7 +451,15 @@ export class Relationship {
 
   static async loadFromIndexedDBWith(people: Person[], groups: GroupNode[], relationshipTypes: RelationshipType[]): Promise<Relationship[]> {
     const data = await IndexedDBHelper.loadData('relationships');
-    return Promise.all(data.map((item: any) => Relationship.loadFrom(item, people, groups, relationshipTypes)));
+    const relationships: Relationship[] = [];
+    for (const item of data) {
+      try {
+        relationships.push(await Relationship.loadFrom(item, people, groups, relationshipTypes));
+      } catch {
+        // skip orphaned relationships pointing to deleted entities
+      }
+    }
+    return relationships;
   }
 
   static async saveToIndexedDB(relationships: Relationship[]): Promise<void> {
@@ -436,5 +474,14 @@ export class Relationship {
 
   static async deleteFromIndexedDB(id: string): Promise<void> {
     await IndexedDBHelper.deleteData('relationships', id);
+  }
+
+  static async deleteForEntity(entityId: string): Promise<void> {
+    const data = await IndexedDBHelper.loadData('relationships');
+    for (const item of data) {
+      if (item.sourceEntityId === entityId || item.targetEntityId === entityId) {
+        await IndexedDBHelper.deleteData('relationships', item.id);
+      }
+    }
   }
 }

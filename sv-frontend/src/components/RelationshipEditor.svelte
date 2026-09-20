@@ -7,17 +7,32 @@
     people: Person[];
     relationshipTypes: RelationshipType[];
     groups: GroupNode[];
+    initialSourceId?: string;
   }
 
-  let { open = $bindable(), people, relationshipTypes, groups, onRelationshipAdded }: Props & { onRelationshipAdded: (rel: any) => void } = $props();
+  let { open = $bindable(), people, relationshipTypes, groups, initialSourceId = '', onRelationshipAdded }: Props & { onRelationshipAdded: (rel: any) => void } = $props();
 
   let source = $state('');
   let target = $state('');
   let type = $state('');
   let formValid = $state(true);
   let sourceError = $state('');
+  let sourceSearch = $state('');
+  let targetSearch = $state('');
 
-  let allEntities = $derived([...people, ...groups]);
+  $effect(() => {
+    if (open && initialSourceId) {
+      source = initialSourceId;
+    }
+  });
+
+  const collator = new Intl.Collator('zh-Hans-CN', { sensitivity: 'base' });
+  let allEntities = $derived([...people, ...groups].sort((a, b) => {
+    const aIsGroup = a instanceof GroupNode ? 1 : 0;
+    const bIsGroup = b instanceof GroupNode ? 1 : 0;
+    if (aIsGroup !== bIsGroup) return aIsGroup - bIsGroup;
+    return collator.compare(a.name, b.name);
+  }));
   let allEntityOptions = $derived(allEntities.map(e => ({ value: e.id, label: `${e.name}${e instanceof Person ? '' : ' (群组)'}` })));
 
   let filteredRelationshipTypes = $derived(() => {
@@ -31,12 +46,23 @@
 
   let filteredTypeOptions = $derived(filteredRelationshipTypes().map(rt => ({ value: rt.id, label: rt.name })));
 
+  function filterOptions(options: { value: string; label: string }[], query: string, selected: string) {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return options;
+    return options.filter(opt => opt.value === selected || opt.label.toLowerCase().includes(needle));
+  }
+
+  let sourceOptions = $derived(filterOptions(allEntityOptions, sourceSearch, source));
+  let targetOptions = $derived(filterOptions(allEntityOptions, targetSearch, target));
+
   function closeDialog() {
     open = false;
     source = '';
     target = '';
     type = '';
     sourceError = '';
+    sourceSearch = '';
+    targetSearch = '';
     formValid = true;
   }
 
@@ -96,9 +122,17 @@
     <Row class="align-items-end mb-3">
       <Col xs="9">
         <label class="form-label" for="relSource">此</label>
+        <Input
+          type="search"
+          placeholder="搜索…"
+          value={sourceSearch}
+          oninput={(e) => sourceSearch = (e.target as HTMLInputElement).value}
+          bsSize="sm"
+          class="mb-1"
+        />
         <select id="relSource" class="form-select" bind:value={source}>
           <option value="">请选择</option>
-          {#each allEntityOptions as opt}
+          {#each sourceOptions as opt (opt.value)}
             <option value={opt.value}>{opt.label}</option>
           {/each}
         </select>
@@ -126,9 +160,17 @@
     <Row class="justify-content-end mb-3">
       <Col xs="9">
         <label class="form-label" for="relTarget">彼</label>
+        <Input
+          type="search"
+          placeholder="搜索…"
+          value={targetSearch}
+          oninput={(e) => targetSearch = (e.target as HTMLInputElement).value}
+          bsSize="sm"
+          class="mb-1"
+        />
         <select id="relTarget" class="form-select" bind:value={target}>
           <option value="">请选择</option>
-          {#each allEntityOptions as opt}
+          {#each targetOptions as opt (opt.value)}
             <option value={opt.value}>{opt.label}</option>
           {/each}
         </select>

@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { Person } from '../models/PersonRelationship';
-  import { Container, Button, Input, FormGroup, Label, Modal, ModalHeader, ModalBody, ModalFooter, Pagination, PaginationItem } from '@sveltestrap/sveltestrap';
+  import { Person, RelationshipType, Relationship, GroupNode } from '../models/PersonRelationship';
+  import { Container, Button, Input, FormGroup, Label, Modal, ModalHeader, ModalBody, ModalFooter, Pagination, PaginationItem, Offcanvas, OffcanvasHeader, OffcanvasBody, ListGroup, ListGroupItem } from '@sveltestrap/sveltestrap';
   import { onMount } from 'svelte';
+  import RelationshipEditor from '../components/RelationshipEditor.svelte';
+  import GroupEditor from '../components/GroupEditor.svelte';
 
   let people: Person[] = $state([]);
   let dialog = $state(false);
@@ -26,6 +28,26 @@
   let page = $state(1);
   const pageSize = 10;
   const collator = new Intl.Collator('zh-Hans-CN', { sensitivity: 'base' });
+
+  let relationshipTypes: RelationshipType[] = $state([]);
+  let groups: GroupNode[] = $state([]);
+  let relationships: Relationship[] = $state([]);
+  let relDataLoaded = $state(false);
+  let contextPerson = $state<Person | null>(null);
+  let relDrawerOpen = $state(false);
+  let relEditorOpen = $state(false);
+  let groupEditorOpen = $state(false);
+  let groupToEdit = $state<GroupNode | null>(null);
+  let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+
+  let contextDirectRelationships = $derived(
+    contextPerson
+      ? relationships.filter(r => r.sourceEntity.id === contextPerson!.id || r.targetEntity.id === contextPerson!.id)
+      : []
+  );
+  let contextGroups = $derived(
+    contextPerson ? groups.filter(g => g.members.some(m => m.id === contextPerson!.id)) : []
+  );
 
   let filtered = $derived(people.filter(p => matches(p, search)));
   let sorted = $derived([...filtered].sort(comparePeople));
@@ -91,6 +113,93 @@
     page = target;
   }
 
+  async function loadRelationshipData() {
+    relationshipTypes = await RelationshipType.loadFromIndexedDB();
+    groups = await GroupNode.loadFromIndexedDBWith(people, relationshipTypes);
+    relationships = await Relationship.loadFromIndexedDBWith(people, groups, relationshipTypes);
+    relDataLoaded = true;
+  }
+
+  async function refreshRelationshipData() {
+    if (!relDataLoaded) return;
+    await loadRelationshipData();
+  }
+
+  async function openPersonMenu(p: Person) {
+    contextPerson = p;
+    relDrawerOpen = true;
+    if (!relDataLoaded) {
+      await loadRelationshipData();
+    }
+  }
+
+  function closePersonMenu() {
+    relDrawerOpen = false;
+  }
+
+  function openContextMenu(e: MouseEvent, p: Person) {
+    e.preventDefault();
+    openPersonMenu(p);
+  }
+
+  function onPersonKeydown(e: KeyboardEvent, p: Person) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openPersonMenu(p);
+    }
+  }
+
+  function startLongPress(e: PointerEvent, p: Person) {
+    if ((e.target as HTMLElement).closest('button, a, input, select')) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    cancelLongPress();
+    longPressTimer = setTimeout(() => {
+      longPressTimer = null;
+      openPersonMenu(p);
+    }, 500);
+  }
+
+  function cancelLongPress() {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  }
+
+  function directionLabel(rel: Relationship, p: Person): string {
+    return rel.sourceEntity.id === p.id
+      ? `${p.name} → ${rel.targetEntity.name}`
+      : `${rel.sourceEntity.name} → ${p.name}`;
+  }
+
+  async function deleteRelationship(rel: Relationship) {
+    await Relationship.deleteFromIndexedDB(rel.id);
+    await refreshRelationshipData();
+  }
+
+  async function deleteGroup(group: GroupNode) {
+    await GroupNode.deleteCascade(group.id);
+    await refreshRelationshipData();
+  }
+
+  function editGroup(group: GroupNode) {
+    groupToEdit = group;
+    groupEditorOpen = true;
+  }
+
+  function createGroup() {
+    groupToEdit = null;
+    groupEditorOpen = true;
+  }
+
+  async function onRelationshipAdded() {
+    await refreshRelationshipData();
+  }
+
+  async function onGroupSaved() {
+    await refreshRelationshipData();
+  }
+
   function newPerson() {
     editIndex = -1;
     person = Person.create('', null);
@@ -133,8 +242,12 @@
   async function deletePerson(p: Person) {
     const idx = people.findIndex(x => x.id === p.id);
     if (idx === -1) return;
+    if (contextPerson?.id === p.id) {
+      relDrawerOpen = false;
+      contextPerson = null;
+    }
     people.splice(idx, 1);
-    await Person.deleteFromIndexedDB(p.id);
+    await Person.deleteCascade(p);
     if (p.photo) {
       await Person.deleteOriginalPhoto(p.photo);
     }
@@ -143,6 +256,7 @@
         await Person.deleteOriginalPhoto(history.photo);
       }
     }
+    await refreshRelationshipData();
   }
 
   async function showOriginalPhoto(p: Person) {
@@ -407,7 +521,18 @@
 
   <div class="list-group list-group-flush">
     {#each paged as p (p.id)}
-      <div class="list-group-item hover-item">
+      <div
+        class="list-group-item hover-item"
+        role="button"
+        tabindex="0"
+        aria-label={`${p.name} 的关系`}
+        onkeydown={(e) => onPersonKeydown(e, p)}
+        oncontextmenu={(e) => openContextMenu(e, p)}
+        onpointerdown={(e) => startLongPress(e, p)}
+        onpointerup={cancelLongPress}
+        onpointercancel={cancelLongPress}
+        onpointerleave={cancelLongPress}
+      >
         <div class="d-flex">
           <button class="img-btn" onclick={() => showOriginalPhoto(p)}>
           <img
@@ -486,6 +611,87 @@
       </PaginationItem>
     </Pagination>
   {/if}
+
+  <Offcanvas isOpen={relDrawerOpen} toggle={closePersonMenu} placement="bottom">
+    <OffcanvasHeader toggle={closePersonMenu}>
+      {contextPerson?.name ?? ''} 的关系
+    </OffcanvasHeader>
+    <OffcanvasBody>
+      <h6 class="text-muted">直接关系</h6>
+      <ListGroup flush>
+        {#each contextDirectRelationships as rel (rel.id)}
+          <ListGroupItem>
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="me-2">
+                <div>{directionLabel(rel, contextPerson!)}</div>
+                <small class="text-muted">{rel.relationshipType.name}</small>
+              </div>
+              <Button color="light" size="sm" onclick={() => deleteRelationship(rel)}>
+                <i class="bi bi-trash"></i>
+              </Button>
+            </div>
+          </ListGroupItem>
+        {/each}
+        {#if contextDirectRelationships.length === 0}
+          <ListGroupItem class="text-center text-muted">暂无直接关系</ListGroupItem>
+        {/if}
+      </ListGroup>
+
+      <h6 class="text-muted mt-3">所在群组</h6>
+      <ListGroup flush>
+        {#each contextGroups as group (group.id)}
+          <ListGroupItem>
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="me-2">
+                <div>{group.name}</div>
+                <small class="text-muted text-truncate d-block">
+                  {group.members.map(m => m.name).join(', ')}
+                </small>
+              </div>
+              <div class="d-flex">
+                <Button color="light" size="sm" onclick={() => editGroup(group)}>
+                  <i class="bi bi-pencil"></i>
+                </Button>
+                <Button color="light" size="sm" onclick={() => deleteGroup(group)}>
+                  <i class="bi bi-trash"></i>
+                </Button>
+              </div>
+            </div>
+          </ListGroupItem>
+        {/each}
+        {#if contextGroups.length === 0}
+          <ListGroupItem class="text-center text-muted">不在任何群组</ListGroupItem>
+        {/if}
+      </ListGroup>
+
+      <div class="d-flex gap-2 mt-3">
+        <Button color="primary" onclick={() => relEditorOpen = true}>
+          <i class="bi bi-plus-lg"></i> 以此人添加关系
+        </Button>
+        <Button color="secondary" onclick={createGroup}>
+          <i class="bi bi-people"></i> 以此人创建群组
+        </Button>
+      </div>
+    </OffcanvasBody>
+  </Offcanvas>
+
+  <RelationshipEditor
+    bind:open={relEditorOpen}
+    people={people}
+    relationshipTypes={relationshipTypes}
+    groups={groups}
+    initialSourceId={contextPerson?.id ?? ''}
+    onRelationshipAdded={onRelationshipAdded}
+  />
+
+  <GroupEditor
+    bind:open={groupEditorOpen}
+    people={people}
+    group={groupToEdit}
+    relationshipTypes={relationshipTypes}
+    initialMemberIds={contextPerson ? [contextPerson.id] : []}
+    onGroupUpdated={onGroupSaved}
+  />
 </Container>
 
 <style>
