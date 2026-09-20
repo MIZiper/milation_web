@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Person } from '../models/PersonRelationship';
-  import { Container, Button, Input, FormGroup, Label, Modal, ModalHeader, ModalBody, ModalFooter } from '@sveltestrap/sveltestrap';
+  import { Container, Button, Input, FormGroup, Label, Modal, ModalHeader, ModalBody, ModalFooter, Pagination, PaginationItem } from '@sveltestrap/sveltestrap';
   import { onMount } from 'svelte';
 
   let people: Person[] = $state([]);
@@ -19,9 +19,77 @@
   let formValid = $state(true);
   let nameError = $state('');
 
+  let showTools = $state(false);
+  let search = $state('');
+  let sortField = $state<'name' | 'timestamp'>('timestamp');
+  let sortAsc = $state(false);
+  let page = $state(1);
+  const pageSize = 10;
+  const collator = new Intl.Collator('zh-Hans-CN', { sensitivity: 'base' });
+
+  let filtered = $derived(people.filter(p => matches(p, search)));
+  let sorted = $derived([...filtered].sort(comparePeople));
+  let totalPages = $derived(Math.max(1, Math.ceil(sorted.length / pageSize)));
+  let paged = $derived(sorted.slice((page - 1) * pageSize, page * pageSize));
+
+  let pageNumbers = $derived.by(() => {
+    const total = totalPages;
+    const current = page;
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    const pages: (number | '...')[] = [1];
+    const start = Math.max(2, current - 1);
+    const end = Math.min(total - 1, current + 1);
+    if (start > 2) pages.push('...');
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (end < total - 1) pages.push('...');
+    pages.push(total);
+    return pages;
+  });
+
+  $effect(() => {
+    if (page > totalPages) page = totalPages;
+  });
+
   onMount(async () => {
     people = await Person.loadFromIndexedDB();
   });
+
+  function matches(p: Person, query: string): boolean {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return true;
+    return [p.name, p.contact, p.birthYear, p.notes].some(
+      value => (value || '').toLowerCase().includes(needle)
+    );
+  }
+
+  function comparePeople(a: Person, b: Person): number {
+    const cmp = sortField === 'name'
+      ? collator.compare(a.name, b.name)
+      : Date.parse(a.timestamp) - Date.parse(b.timestamp);
+    return sortAsc ? cmp : -cmp;
+  }
+
+  function changeSearch(value: string) {
+    search = value;
+    page = 1;
+  }
+
+  function changeSortField(value: string) {
+    sortField = value as 'name' | 'timestamp';
+    page = 1;
+  }
+
+  function toggleSortDir() {
+    sortAsc = !sortAsc;
+    page = 1;
+  }
+
+  function goToPage(target: number) {
+    if (target < 1 || target > totalPages || target === page) return;
+    page = target;
+  }
 
   function newPerson() {
     editIndex = -1;
@@ -40,18 +108,20 @@
     nameError = '';
   }
 
-  function editPerson(idx: number) {
+  function editPerson(p: Person) {
+    const idx = people.findIndex(x => x.id === p.id);
+    if (idx === -1) return;
     editIndex = idx;
     person = new Person(
-      people[idx].id,
-      people[idx].name,
-      people[idx].thumbnailPhoto,
-      people[idx].birthYear,
-      people[idx].contact,
-      people[idx].notes,
-      people[idx].timestamp,
-      [...people[idx].histories],
-      people[idx].photo
+      p.id,
+      p.name,
+      p.thumbnailPhoto,
+      p.birthYear,
+      p.contact,
+      p.notes,
+      p.timestamp,
+      [...p.histories],
+      p.photo
     );
     newPhoto = null;
     photoPreview = person.thumbnailPhoto;
@@ -60,8 +130,10 @@
     dialog = true;
   }
 
-  async function deletePerson(idx: number) {
-    const p = people.splice(idx, 1)[0];
+  async function deletePerson(p: Person) {
+    const idx = people.findIndex(x => x.id === p.id);
+    if (idx === -1) return;
+    people.splice(idx, 1);
     await Person.deleteFromIndexedDB(p.id);
     if (p.photo) {
       await Person.deleteOriginalPhoto(p.photo);
@@ -123,6 +195,7 @@
     );
     if (editIndex === -1) {
       people.push(newPerson);
+      page = 1;
     } else {
       people[editIndex] = newPerson;
     }
@@ -168,8 +241,7 @@
     dialog = false;
   }
 
-  function viewHistory(idx: number) {
-    const p = people[idx];
+  function viewHistory(p: Person) {
     personHistory = p.histories;
     historyIndex = 0;
     currentHistory = personHistory.length > 0 ? personHistory[0] : null;
@@ -198,6 +270,10 @@
 <Container fluid>
   <Button color="primary" style="position: fixed; bottom: 72px; right: 16px; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 1000; font-size: 24px; padding: 0;" onclick={newPerson}>
     <i class="bi bi-plus-lg"></i>
+  </Button>
+
+  <Button color={showTools ? 'primary' : 'secondary'} style="position: fixed; bottom: 140px; right: 16px; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 1000; font-size: 24px; padding: 0;" aria-label="搜索与排序" title="搜索与排序" onclick={() => showTools = !showTools}>
+    <i class="bi bi-search"></i>
   </Button>
 
   <Modal isOpen={dialog} toggle={closeDialog}>
@@ -298,8 +374,39 @@
     </ModalBody>
   </Modal>
 
+  {#if showTools}
+    <div class="tools-panel">
+      <div class="tools-panel-content">
+        <Input
+          type="search"
+          placeholder="搜索姓名、联系方式、备注…"
+          value={search}
+          oninput={(e) => changeSearch((e.target as HTMLInputElement).value)}
+        />
+        <div class="d-flex align-items-center gap-2 mt-2">
+          <select
+            class="form-select"
+            value={sortField}
+            onchange={(e) => changeSortField((e.target as HTMLSelectElement).value)}
+          >
+            <option value="timestamp">按添加时间</option>
+            <option value="name">按姓名</option>
+          </select>
+          <Button
+            color="secondary"
+            title={sortAsc ? '升序' : '降序'}
+            aria-label={sortAsc ? '升序' : '降序'}
+            onclick={toggleSortDir}
+          >
+            <i class={sortAsc ? 'bi bi-sort-down-alt' : 'bi bi-sort-down'}></i>
+          </Button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
   <div class="list-group list-group-flush">
-    {#each people as p, idx (p.id)}
+    {#each paged as p (p.id)}
       <div class="list-group-item hover-item">
         <div class="d-flex">
           <button class="img-btn" onclick={() => showOriginalPhoto(p)}>
@@ -331,14 +438,14 @@
           </div>
           <div class="hover-actions">
             {#if p.histories.length > 0}
-              <Button color="light" size="sm" onclick={() => viewHistory(idx)}>
+              <Button color="light" size="sm" onclick={() => viewHistory(p)}>
                 <i class="bi bi-clock-history"></i>
               </Button>
             {/if}
-            <Button color="light" size="sm" onclick={() => editPerson(idx)}>
+            <Button color="light" size="sm" onclick={() => editPerson(p)}>
               <i class="bi bi-pencil"></i>
             </Button>
-            <Button color="light" size="sm" onclick={() => deletePerson(idx)}>
+            <Button color="light" size="sm" onclick={() => deletePerson(p)}>
               <i class="bi bi-trash"></i>
             </Button>
           </div>
@@ -350,8 +457,35 @@
         <i class="bi bi-people" style="font-size: 3rem;"></i>
         <p class="mt-3">暂无人员，点击右下角 + 添加</p>
       </div>
+    {:else if paged.length === 0}
+      <div class="list-group-item text-center text-muted py-5">
+        <i class="bi bi-search" style="font-size: 3rem;"></i>
+        <p class="mt-3">未找到匹配人员</p>
+      </div>
     {/if}
   </div>
+
+  {#if totalPages > 1}
+    <Pagination class="justify-content-center mt-3 mb-4">
+      <PaginationItem disabled={page === 1}>
+        <button class="page-link" onclick={() => goToPage(page - 1)}>上一页</button>
+      </PaginationItem>
+      {#each pageNumbers as n}
+        {#if n === '...'}
+          <PaginationItem disabled>
+            <span class="page-link">…</span>
+          </PaginationItem>
+        {:else}
+          <PaginationItem active={n === page}>
+            <button class="page-link" onclick={() => goToPage(n)}>{n}</button>
+          </PaginationItem>
+        {/if}
+      {/each}
+      <PaginationItem disabled={page === totalPages}>
+        <button class="page-link" onclick={() => goToPage(page + 1)}>下一页</button>
+      </PaginationItem>
+    </Pagination>
+  {/if}
 </Container>
 
 <style>
@@ -360,6 +494,22 @@
     border: none;
     padding: 0;
     cursor: pointer;
+  }
+
+  .tools-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 56px;
+    z-index: 999;
+    background: #fff;
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+    padding: 12px 16px;
+  }
+
+  .tools-panel-content {
+    padding-right: 72px;
   }
 
   .hover-item {
