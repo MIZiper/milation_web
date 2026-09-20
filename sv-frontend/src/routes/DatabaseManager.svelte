@@ -228,7 +228,7 @@
   <Card>
     <CardBody>
       <CardTitle>删除数据库</CardTitle>
-      <CardText>点击下面的按钮删除数据库。</CardText>
+      <CardText>点击下面的按钮删除数据库。（注意没有弹框确认步骤）</CardText>
     </CardBody>
     <CardFooter>
       <Button color="danger" onclick={deleteDatabase}>
