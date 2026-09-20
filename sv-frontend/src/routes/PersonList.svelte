@@ -44,7 +44,6 @@
   let groupToEdit = $state<GroupNode | null>(null);
   let relEditOpen = $state(false);
   let relationshipToEdit = $state<Relationship | null>(null);
-  let longPressTimer: ReturnType<typeof setTimeout> | null = null;
 
   let contextRelationships = $derived(
     contextEntity
@@ -187,23 +186,6 @@
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       openEntityPanel(p);
-    }
-  }
-
-  function startLongPress(e: PointerEvent, p: Person) {
-    if ((e.target as HTMLElement).closest('button, a, input, select')) return;
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    cancelLongPress();
-    longPressTimer = setTimeout(() => {
-      longPressTimer = null;
-      openEntityPanel(p);
-    }, 500);
-  }
-
-  function cancelLongPress() {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
     }
   }
 
@@ -589,10 +571,6 @@
         aria-label={`${p.name} 的关系`}
         onkeydown={(e) => onPersonKeydown(e, p)}
         oncontextmenu={(e) => openContextMenu(e, p)}
-        onpointerdown={(e) => startLongPress(e, p)}
-        onpointerup={cancelLongPress}
-        onpointercancel={cancelLongPress}
-        onpointerleave={cancelLongPress}
       >
         <div class="d-flex">
           <button class="img-btn" onclick={() => showOriginalPhoto(p)}>
@@ -624,11 +602,14 @@
           </div>
           <div class="hover-actions">
             {#if p.histories.length > 0}
-              <Button color="light" size="sm" onclick={() => viewHistory(p)}>
+              <Button color="light" size="sm" title="历史版本" onclick={() => viewHistory(p)}>
                 <i class="bi bi-clock-history"></i>
               </Button>
             {/if}
-            <Button color="light" size="sm" onclick={() => editPerson(p)}>
+            <Button color="light" size="sm" title="关系" aria-label={`${p.name} 的关系`} onclick={() => openEntityPanel(p)}>
+              <i class="bi bi-diagram-3"></i>
+            </Button>
+            <Button color="light" size="sm" title="编辑" onclick={() => editPerson(p)}>
               <i class="bi bi-pencil"></i>
             </Button>
             <Button color="light" size="sm" onclick={() => deletePerson(p)}>
