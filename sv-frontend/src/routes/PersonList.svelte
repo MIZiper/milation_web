@@ -1,9 +1,12 @@
 <script lang="ts">
   import { Person, RelationshipType, Relationship, GroupNode } from '../models/PersonRelationship';
-  import { Container, Button, Input, FormGroup, Label, Modal, ModalHeader, ModalBody, ModalFooter, Pagination, PaginationItem, Offcanvas, OffcanvasHeader, OffcanvasBody, ListGroup, ListGroupItem } from '@sveltestrap/sveltestrap';
+  import { Container, Button, Input, FormGroup, Label, Modal, ModalHeader, ModalBody, ModalFooter, Pagination, PaginationItem, Offcanvas, OffcanvasBody, ListGroup, ListGroupItem } from '@sveltestrap/sveltestrap';
   import { onMount } from 'svelte';
   import RelationshipEditor from '../components/RelationshipEditor.svelte';
   import GroupEditor from '../components/GroupEditor.svelte';
+  import RelationshipEditModal from '../components/RelationshipEditModal.svelte';
+
+  type PanelEntity = Person | GroupNode;
 
   let people: Person[] = $state([]);
   let dialog = $state(false);
@@ -33,20 +36,28 @@
   let groups: GroupNode[] = $state([]);
   let relationships: Relationship[] = $state([]);
   let relDataLoaded = $state(false);
-  let contextPerson = $state<Person | null>(null);
+  let contextEntity = $state<PanelEntity | null>(null);
+  let entityStack = $state<PanelEntity[]>([]);
   let relDrawerOpen = $state(false);
   let relEditorOpen = $state(false);
   let groupEditorOpen = $state(false);
   let groupToEdit = $state<GroupNode | null>(null);
+  let relEditOpen = $state(false);
+  let relationshipToEdit = $state<Relationship | null>(null);
   let longPressTimer: ReturnType<typeof setTimeout> | null = null;
 
-  let contextDirectRelationships = $derived(
-    contextPerson
-      ? relationships.filter(r => r.sourceEntity.id === contextPerson!.id || r.targetEntity.id === contextPerson!.id)
+  let contextRelationships = $derived(
+    contextEntity
+      ? relationships.filter(r => r.sourceEntity.id === contextEntity!.id || r.targetEntity.id === contextEntity!.id)
       : []
   );
   let contextGroups = $derived(
-    contextPerson ? groups.filter(g => g.members.some(m => m.id === contextPerson!.id)) : []
+    contextEntity instanceof Person
+      ? groups.filter(g => g.members.some(m => m.id === (contextEntity as Person).id))
+      : []
+  );
+  let contextMembers = $derived(
+    contextEntity instanceof GroupNode ? (contextEntity as GroupNode).members : []
   );
 
   let filtered = $derived(people.filter(p => matches(p, search)));
@@ -113,11 +124,24 @@
     page = target;
   }
 
+  function resolveEntity(entity: PanelEntity): PanelEntity {
+    if (entity instanceof Person) {
+      return people.find(p => p.id === entity.id) ?? entity;
+    }
+    return groups.find(g => g.id === entity.id) ?? entity;
+  }
+
+  function syncContextEntities() {
+    if (contextEntity) contextEntity = resolveEntity(contextEntity);
+    entityStack = entityStack.map(resolveEntity);
+  }
+
   async function loadRelationshipData() {
     relationshipTypes = await RelationshipType.loadFromIndexedDB();
     groups = await GroupNode.loadFromIndexedDBWith(people, relationshipTypes);
     relationships = await Relationship.loadFromIndexedDBWith(people, groups, relationshipTypes);
     relDataLoaded = true;
+    syncContextEntities();
   }
 
   async function refreshRelationshipData() {
@@ -125,27 +149,44 @@
     await loadRelationshipData();
   }
 
-  async function openPersonMenu(p: Person) {
-    contextPerson = p;
+  async function openEntityPanel(entity: PanelEntity) {
+    entityStack = [];
+    contextEntity = entity;
     relDrawerOpen = true;
     if (!relDataLoaded) {
       await loadRelationshipData();
     }
   }
 
+  function drillTo(entity: PanelEntity) {
+    if (contextEntity) {
+      entityStack = [...entityStack, contextEntity];
+    }
+    contextEntity = entity;
+  }
+
+  function goBack() {
+    if (entityStack.length === 0) return;
+    const stack = [...entityStack];
+    contextEntity = stack.pop()!;
+    entityStack = stack;
+  }
+
   function closePersonMenu() {
     relDrawerOpen = false;
+    entityStack = [];
+    contextEntity = null;
   }
 
   function openContextMenu(e: MouseEvent, p: Person) {
     e.preventDefault();
-    openPersonMenu(p);
+    openEntityPanel(p);
   }
 
   function onPersonKeydown(e: KeyboardEvent, p: Person) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      openPersonMenu(p);
+      openEntityPanel(p);
     }
   }
 
@@ -155,7 +196,7 @@
     cancelLongPress();
     longPressTimer = setTimeout(() => {
       longPressTimer = null;
-      openPersonMenu(p);
+      openEntityPanel(p);
     }, 500);
   }
 
@@ -166,10 +207,13 @@
     }
   }
 
-  function directionLabel(rel: Relationship, p: Person): string {
-    return rel.sourceEntity.id === p.id
-      ? `${p.name} → ${rel.targetEntity.name}`
-      : `${rel.sourceEntity.name} → ${p.name}`;
+  function otherEntity(rel: Relationship, entity: PanelEntity): PanelEntity {
+    return (rel.sourceEntity.id === entity.id ? rel.targetEntity : rel.sourceEntity) as PanelEntity;
+  }
+
+  function entityLabel(entity: PanelEntity | null): string {
+    if (!entity) return '';
+    return entity instanceof GroupNode ? `${entity.name} (群组)` : entity.name;
   }
 
   async function deleteRelationship(rel: Relationship) {
@@ -177,8 +221,22 @@
     await refreshRelationshipData();
   }
 
+  function editRelationship(rel: Relationship) {
+    relationshipToEdit = rel;
+    relEditOpen = true;
+  }
+
   async function deleteGroup(group: GroupNode) {
     await GroupNode.deleteCascade(group.id);
+    const wasContext = contextEntity instanceof GroupNode && contextEntity.id === group.id;
+    entityStack = entityStack.filter(e => !(e instanceof GroupNode && e.id === group.id));
+    if (wasContext) {
+      if (entityStack.length > 0) {
+        goBack();
+      } else {
+        closePersonMenu();
+      }
+    }
     await refreshRelationshipData();
   }
 
@@ -197,6 +255,10 @@
   }
 
   async function onGroupSaved() {
+    await refreshRelationshipData();
+  }
+
+  async function onRelationshipUpdated() {
     await refreshRelationshipData();
   }
 
@@ -242,9 +304,8 @@
   async function deletePerson(p: Person) {
     const idx = people.findIndex(x => x.id === p.id);
     if (idx === -1) return;
-    if (contextPerson?.id === p.id) {
-      relDrawerOpen = false;
-      contextPerson = null;
+    if (contextEntity instanceof Person && contextEntity.id === p.id) {
+      closePersonMenu();
     }
     people.splice(idx, 1);
     await Person.deleteCascade(p);
@@ -612,65 +673,118 @@
     </Pagination>
   {/if}
 
-  <Offcanvas isOpen={relDrawerOpen} toggle={closePersonMenu} placement="bottom">
-    <OffcanvasHeader toggle={closePersonMenu}>
-      {contextPerson?.name ?? ''} 的关系
-    </OffcanvasHeader>
+  <Offcanvas
+    isOpen={relDrawerOpen}
+    toggle={closePersonMenu}
+    placement="bottom"
+    style="height: 70vh;"
+  >
+    <svelte:fragment slot="header">
+      {#if entityStack.length > 0}
+        <button class="offcanvas-back" onclick={goBack} aria-label="返回" title="返回">
+          <i class="bi bi-arrow-left"></i>
+        </button>
+      {/if}
+      {contextEntity?.name ?? ''}{#if contextEntity instanceof GroupNode} <small class="text-muted">群组</small>{/if}
+    </svelte:fragment>
     <OffcanvasBody>
       <h6 class="text-muted">直接关系</h6>
       <ListGroup flush>
-        {#each contextDirectRelationships as rel (rel.id)}
+        {#each contextRelationships as rel (rel.id)}
           <ListGroupItem>
             <div class="d-flex justify-content-between align-items-center">
               <div class="me-2">
-                <div>{directionLabel(rel, contextPerson!)}</div>
+                <div>
+                  {#if rel.sourceEntity.id === contextEntity?.id}
+                    <strong>{rel.sourceEntity.name}</strong>
+                    <i class="bi bi-arrow-right"></i>
+                    <button class="entity-link" onclick={() => drillTo(rel.targetEntity as PanelEntity)}>
+                      {rel.targetEntity.name}
+                    </button>
+                  {:else}
+                    <button class="entity-link" onclick={() => drillTo(rel.sourceEntity as PanelEntity)}>
+                      {rel.sourceEntity.name}
+                    </button>
+                    <i class="bi bi-arrow-right"></i>
+                    <strong>{rel.targetEntity.name}</strong>
+                  {/if}
+                </div>
                 <small class="text-muted">{rel.relationshipType.name}</small>
               </div>
-              <Button color="light" size="sm" onclick={() => deleteRelationship(rel)}>
-                <i class="bi bi-trash"></i>
-              </Button>
-            </div>
-          </ListGroupItem>
-        {/each}
-        {#if contextDirectRelationships.length === 0}
-          <ListGroupItem class="text-center text-muted">暂无直接关系</ListGroupItem>
-        {/if}
-      </ListGroup>
-
-      <h6 class="text-muted mt-3">所在群组</h6>
-      <ListGroup flush>
-        {#each contextGroups as group (group.id)}
-          <ListGroupItem>
-            <div class="d-flex justify-content-between align-items-center">
-              <div class="me-2">
-                <div>{group.name}</div>
-                <small class="text-muted text-truncate d-block">
-                  {group.members.map(m => m.name).join(', ')}
-                </small>
-              </div>
               <div class="d-flex">
-                <Button color="light" size="sm" onclick={() => editGroup(group)}>
+                <Button color="light" size="sm" onclick={() => editRelationship(rel)}>
                   <i class="bi bi-pencil"></i>
                 </Button>
-                <Button color="light" size="sm" onclick={() => deleteGroup(group)}>
+                <Button color="light" size="sm" onclick={() => deleteRelationship(rel)}>
                   <i class="bi bi-trash"></i>
                 </Button>
               </div>
             </div>
           </ListGroupItem>
         {/each}
-        {#if contextGroups.length === 0}
-          <ListGroupItem class="text-center text-muted">不在任何群组</ListGroupItem>
+        {#if contextRelationships.length === 0}
+          <ListGroupItem class="text-center text-muted">暂无直接关系</ListGroupItem>
         {/if}
       </ListGroup>
 
+      {#if contextEntity instanceof Person}
+        <h6 class="text-muted mt-3">所在群组</h6>
+        <ListGroup flush>
+          {#each contextGroups as group (group.id)}
+            <ListGroupItem>
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="me-2">
+                  <div>{group.name}</div>
+                  <small class="text-muted text-truncate d-block">
+                    {group.members.map(m => m.name).join(', ')}
+                  </small>
+                </div>
+                <div class="d-flex">
+                  <Button color="light" size="sm" title="查看关系" onclick={() => drillTo(group)}>
+                    <i class="bi bi-diagram-3"></i>
+                  </Button>
+                  <Button color="light" size="sm" onclick={() => editGroup(group)}>
+                    <i class="bi bi-pencil"></i>
+                  </Button>
+                  <Button color="light" size="sm" onclick={() => deleteGroup(group)}>
+                    <i class="bi bi-trash"></i>
+                  </Button>
+                </div>
+              </div>
+            </ListGroupItem>
+          {/each}
+          {#if contextGroups.length === 0}
+            <ListGroupItem class="text-center text-muted">不在任何群组</ListGroupItem>
+          {/if}
+        </ListGroup>
+      {/if}
+
+      {#if contextEntity instanceof GroupNode}
+        <h6 class="text-muted mt-3">成员</h6>
+        <ListGroup flush>
+          {#each contextMembers as member (member.id)}
+            <ListGroupItem>
+              <button class="entity-link" onclick={() => drillTo(member)}>{member.name}</button>
+            </ListGroupItem>
+          {/each}
+          {#if contextMembers.length === 0}
+            <ListGroupItem class="text-center text-muted">暂无成员</ListGroupItem>
+          {/if}
+        </ListGroup>
+        <Button color="light" size="sm" class="mt-2" onclick={() => editGroup(contextEntity as GroupNode)}>
+          <i class="bi bi-pencil"></i> 编辑成员
+        </Button>
+      {/if}
+
       <div class="d-flex gap-2 mt-3">
         <Button color="primary" onclick={() => relEditorOpen = true}>
-          <i class="bi bi-plus-lg"></i> 以此人添加关系
+          <i class="bi bi-plus-lg"></i> 以此{contextEntity instanceof GroupNode ? '群组' : '人'}添加关系
         </Button>
-        <Button color="secondary" onclick={createGroup}>
-          <i class="bi bi-people"></i> 以此人创建群组
-        </Button>
+        {#if contextEntity instanceof Person}
+          <Button color="secondary" onclick={createGroup}>
+            <i class="bi bi-people"></i> 以此人创建群组
+          </Button>
+        {/if}
       </div>
     </OffcanvasBody>
   </Offcanvas>
@@ -680,7 +794,7 @@
     people={people}
     relationshipTypes={relationshipTypes}
     groups={groups}
-    initialSourceId={contextPerson?.id ?? ''}
+    initialSourceId={contextEntity?.id ?? ''}
     onRelationshipAdded={onRelationshipAdded}
   />
 
@@ -689,8 +803,15 @@
     people={people}
     group={groupToEdit}
     relationshipTypes={relationshipTypes}
-    initialMemberIds={contextPerson ? [contextPerson.id] : []}
+    initialMemberIds={contextEntity instanceof Person ? [contextEntity.id] : []}
     onGroupUpdated={onGroupSaved}
+  />
+
+  <RelationshipEditModal
+    bind:open={relEditOpen}
+    relationship={relationshipToEdit}
+    relationshipTypes={relationshipTypes}
+    onUpdated={onRelationshipUpdated}
   />
 </Container>
 
@@ -699,6 +820,25 @@
     background: none;
     border: none;
     padding: 0;
+    cursor: pointer;
+  }
+
+  .entity-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #0d6efd;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .offcanvas-back {
+    background: none;
+    border: none;
+    padding: 0;
+    margin-right: 8px;
+    vertical-align: baseline;
+    color: inherit;
     cursor: pointer;
   }
 
