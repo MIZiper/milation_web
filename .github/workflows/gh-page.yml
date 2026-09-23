@@ -1,4 +1,4 @@
-name: Deploy Vue App to GitHub Pages
+name: Deploy Svelte App to GitHub Pages
 
 on:
   push:
@@ -33,6 +33,9 @@ jobs:
         run: |
           cd sv-frontend
           npm run build
+
+      - name: Add SPA fallback for client-side routes
+        run: cp sv-frontend/dist/index.html sv-frontend/dist/404.html
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
