@@ -2,6 +2,7 @@
   import { Person, RelationshipType, Relationship, GroupNode } from '../models/PersonRelationship';
   import { Container, Button, Input, FormGroup, Label, Modal, ModalHeader, ModalBody, ModalFooter, Pagination, PaginationItem, Offcanvas, OffcanvasBody, ListGroup, ListGroupItem } from '@sveltestrap/sveltestrap';
   import { onMount } from 'svelte';
+  import { navigate } from '../router';
   import RelationshipEditor from '../components/RelationshipEditor.svelte';
   import GroupEditor from '../components/GroupEditor.svelte';
   import RelationshipEditModal from '../components/RelationshipEditModal.svelte';
@@ -187,6 +188,10 @@
       e.preventDefault();
       openEntityPanel(p);
     }
+  }
+
+  function openExplore(p: Person) {
+    navigate('/relationship-explore', { search: { focus: p.id } });
   }
 
   function otherEntity(rel: Relationship, entity: PanelEntity): PanelEntity {
@@ -571,9 +576,13 @@
         aria-label={`${p.name} 的关系`}
         onkeydown={(e) => onPersonKeydown(e, p)}
         oncontextmenu={(e) => openContextMenu(e, p)}
+        ondblclick={(e) => {
+          e.preventDefault();
+          openExplore(p);
+        }}
       >
         <div class="d-flex">
-          <button class="img-btn" onclick={() => showOriginalPhoto(p)}>
+          <button class="img-btn" onclick={(e) => { if (e.detail > 1) return; showOriginalPhoto(p); }}>
           <img
             src={p.thumbnailPhoto || defaultPhoto}
             alt={p.name}

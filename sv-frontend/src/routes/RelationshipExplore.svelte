@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import * as d3 from 'd3';
   import { Person, RelationshipType, Relationship, GroupNode } from '../models/PersonRelationship';
   import { Container, Button, Modal, ModalHeader, ModalBody, Input } from '@sveltestrap/sveltestrap';
+  import { navigate, route } from '../router';
 
   type Entity = Person | GroupNode;
 
@@ -15,6 +16,8 @@
   let history: Entity[] = $state([]);
   let pickerOpen = $state(false);
   let pickerSearch = $state('');
+  let loaded = $state(false);
+  let lastFocusParam: string | null = null;
 
   let graphEl: HTMLDivElement;
   let svgG: d3.Selection<SVGGElement, unknown, null, undefined> | null = null;
@@ -51,7 +54,28 @@
     relationshipTypes = await RelationshipType.loadFromIndexedDB();
     groups = await GroupNode.loadFromIndexedDBWith(people, relationshipTypes);
     relationships = await Relationship.loadFromIndexedDBWith(people, groups, relationshipTypes);
-    pickerOpen = true;
+    loaded = true;
+    if (typeof route.search.focus !== 'string') {
+      pickerOpen = true;
+    }
+  });
+
+  // Entering from the person list with ?focus=<id> starts the exploration there.
+  $effect(() => {
+    if (!loaded) return;
+    const target = typeof route.search.focus === 'string' ? route.search.focus : '';
+    if (target === (lastFocusParam ?? '')) return;
+    lastFocusParam = target || null;
+    if (!target) return;
+    const entity = [...people, ...groups].find(e => e.id === target);
+    if (entity) {
+      untrack(() => {
+        focus = entity;
+        history = [];
+        pickerOpen = false;
+        drawEgo();
+      });
+    }
   });
 
   function setFocus(entity: Entity) {
@@ -481,7 +505,10 @@
         <span class="text-muted">关系探索</span>
       {/if}
     </div>
-    <Button color="secondary" size="sm" onclick={openPicker}>
+    <Button color="outline-secondary" size="sm" class="text-nowrap" title="查看全员关系图" onclick={() => navigate('/relationship-graph')}>
+      <i class="bi bi-diagram-3"></i> 全员关系
+    </Button>
+    <Button color="secondary" size="sm" onclick={openPicker} title="选择关注对象">
       <i class="bi bi-search"></i>
     </Button>
   </div>
