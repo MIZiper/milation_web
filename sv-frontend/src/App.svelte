@@ -13,11 +13,14 @@
     } else if (path === '/relationship-graph') {
       activeTab = 1;
       document.title = '关系图 - MILation';
-    } else if (path === '/relationship-type') {
+    } else if (path === '/relationship-explore') {
       activeTab = 2;
+      document.title = '关系探索 - MILation';
+    } else if (path === '/relationship-type') {
+      activeTab = 3;
       document.title = '关系类型 - MILation';
     } else if (path === '/setting') {
-      activeTab = 3;
+      activeTab = 4;
       document.title = '设置 - MILation';
     }
   });
@@ -38,11 +41,15 @@
     <i class="bi bi-diagram-3"></i>
     <span>关系图</span>
   </button>
-  <button class="bottom-nav-btn" class:active={activeTab === 2} onclick={() => navigate('/relationship-type')}>
+  <button class="bottom-nav-btn" class:active={activeTab === 2} onclick={() => navigate('/relationship-explore')}>
+    <i class="bi bi-diagram-2"></i>
+    <span>关系探索</span>
+  </button>
+  <button class="bottom-nav-btn" class:active={activeTab === 3} onclick={() => navigate('/relationship-type')}>
     <i class="bi bi-arrow-left-right"></i>
     <span>关系类型</span>
   </button>
-  <button class="bottom-nav-btn" class:active={activeTab === 3} onclick={() => navigate('/setting')}>
+  <button class="bottom-nav-btn" class:active={activeTab === 4} onclick={() => navigate('/setting')}>
     <i class="bi bi-gear"></i>
     <span>设置</span>
   </button>
