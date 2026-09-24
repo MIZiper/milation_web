@@ -191,6 +191,10 @@ export class Person implements Entity {
     await IndexedDBHelper.saveBlobData('originalPhotos', key, photo);
   }
 
+  static async saveOriginalPhotoBlob(key: string, photo: Blob): Promise<void> {
+    await IndexedDBHelper.saveBlobData('originalPhotos', key, photo);
+  }
+
   static async loadOriginalPhoto(key: string): Promise<Blob | null> {
     return await IndexedDBHelper.loadBlobData('originalPhotos', key);
   }

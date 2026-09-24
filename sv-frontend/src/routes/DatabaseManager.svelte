@@ -1,7 +1,32 @@
 <script lang="ts">
-  import { Container, Card, CardTitle, CardText, CardBody, CardFooter, Button, Row, Col, Input } from '@sveltestrap/sveltestrap';
+  import { Container, Card, CardTitle, CardText, CardBody, CardFooter, Button, Row, Col, Input, Modal, ModalHeader, ModalBody, ModalFooter } from '@sveltestrap/sveltestrap';
   import JSZip from 'jszip';
   import { saveAs } from 'file-saver';
+  import { mergeShare, type ShareSummary } from '../models/ShareTransfer';
+  import ShareSelectGraph from '../components/ShareSelectGraph.svelte';
+
+  let shareOpen = $state(false);
+  let mergeBusy = $state(false);
+  let mergeError = $state('');
+  let mergeSummary = $state<ShareSummary | null>(null);
+  let summaryOpen = $state(false);
+
+  async function handleMerge(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    mergeBusy = true;
+    mergeError = '';
+    try {
+      mergeSummary = await mergeShare(file);
+      summaryOpen = true;
+    } catch (err) {
+      mergeError = err instanceof Error ? err.message : '合并失败';
+    } finally {
+      mergeBusy = false;
+      input.value = '';
+    }
+  }
 
   async function downloadDatabase() {
     const zip = new JSZip();
@@ -212,6 +237,40 @@
 
   <Card class="mb-4">
     <CardBody>
+      <CardTitle>分享与合并</CardTitle>
+      <CardText>
+        <p>选择人员导出分享文件（仅包含选中人员之间的内部关系），或合并他人分享的文件。</p>
+        <p class="mb-0 text-muted small">合并只新增本地缺失的内容，不会覆盖或删除已有数据。</p>
+      </CardText>
+    </CardBody>
+    <CardFooter>
+      <Row class="align-items-center g-2">
+        <Col xs="12" sm="auto">
+          <Button color="secondary" onclick={() => shareOpen = true}>
+            <i class="bi bi-share"></i> 导出分享
+          </Button>
+        </Col>
+        <Col xs="12" sm>
+          <Input
+            type="file"
+            accept=".zip"
+            onchange={handleMerge}
+            disabled={mergeBusy}
+            bsSize="sm"
+          />
+        </Col>
+      </Row>
+      {#if mergeBusy}
+        <p class="text-muted mt-2 mb-0">正在合并…</p>
+      {/if}
+      {#if mergeError}
+        <p class="text-danger mt-2 mb-0">{mergeError}</p>
+      {/if}
+    </CardFooter>
+  </Card>
+
+  <Card class="mb-4">
+    <CardBody>
       <CardTitle>注意事项</CardTitle>
       <CardText>
         <p>MILation网页版所有数据存储于浏览器IndexedDB中，需要自己管理。</p>
@@ -236,4 +295,24 @@
       </Button>
     </CardFooter>
   </Card>
+
+  <ShareSelectGraph bind:open={shareOpen} />
+
+  <Modal isOpen={summaryOpen} toggle={() => summaryOpen = false}>
+    <ModalHeader toggle={() => summaryOpen = false}>合并完成</ModalHeader>
+    <ModalBody>
+      {#if mergeSummary}
+        <ul class="mb-0">
+          <li>人员：新增 {mergeSummary.people.added}，跳过 {mergeSummary.people.skipped}</li>
+          <li>关系类型：新增 {mergeSummary.relationshipTypes.added}，跳过 {mergeSummary.relationshipTypes.skipped}</li>
+          <li>群组：新增 {mergeSummary.groupNodes.added}，跳过 {mergeSummary.groupNodes.skipped}</li>
+          <li>关系：新增 {mergeSummary.relationships.added}，跳过 {mergeSummary.relationships.skipped}</li>
+          <li>照片：新增 {mergeSummary.photos.added}，跳过 {mergeSummary.photos.skipped}</li>
+        </ul>
+      {/if}
+    </ModalBody>
+    <ModalFooter>
+      <Button color="primary" onclick={() => summaryOpen = false}>好</Button>
+    </ModalFooter>
+  </Modal>
 </Container>
